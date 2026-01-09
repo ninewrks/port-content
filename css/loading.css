@@ -1,0 +1,80 @@
+
+
+  /* ===== 로딩 오버레이( 로더 + 탄성 슬라이드 업) ===== */
+  :root{
+    --deep:#0f69f1; --fg:#FFFBF3;
+    --size:50px; --bar-w:2px; --bar-h:18px; --delay-step:.08s;
+    --font: 'newyork'
+  }
+  #preloader{
+    position:fixed; inset:0; z-index:9999;
+    background:var(--deep); color:var(--fg);
+    display:grid; place-items:center;
+    transform: translateY(0);
+    /* 탄성 느낌 easing */
+    transition: transform 1s cubic-bezier(.16,1,.3,1);
+    will-change: transform;
+    height: 100%;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .positon{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+  .label p{
+    font-size: 1.5rem;
+  }
+
+  /* 위로 쓱(탄성) */
+  #preloader.up{
+    transform: translateY(-99%);
+  }
+  @media (prefers-reduced-motion: reduce){
+    #preloader{ transition:none }
+  }
+
+  /* 너의 라디얼 로더(막대가 하나씩 등장) */
+  .loader{ position:relative; width:var(--size); height:var(--size); }
+  .loader span{ position:absolute; left:50%; top:50%; width:0; height:0; transform:translate(-50%,-50%) rotate(var(--deg)); }
+  .loader span::before{
+    content:""; display:block; width:var(--bar-w); height:var(--bar-h);
+    background:var(--fg); border-radius:2px; transform-origin:center bottom;
+    --ty: calc(-1 * (var(--size) / 2 - var(--bar-h) / 2));
+    transform: translateY(var(--ty)) scaleY(0.2);
+    opacity:0; animation: pop 1.1s ease forwards; animation-delay: var(--d);
+  }
+  @keyframes pop{
+    0%   { opacity:0; transform: translateY(var(--ty)) scaleY(0.2); }
+    10%  { opacity:1; transform: translateY(var(--ty)) scaleY(1); }
+    100% { opacity:1; transform: translateY(var(--ty)) scaleY(1); }
+  }
+  .loader span:nth-child(1)  { --deg: 0deg;   --d: calc( 0 * var(--delay-step)); }
+  .loader span:nth-child(2)  { --deg: 30deg;  --d: calc( 1 * var(--delay-step)); }
+  .loader span:nth-child(3)  { --deg: 60deg;  --d: calc( 2 * var(--delay-step)); }
+  .loader span:nth-child(4)  { --deg: 90deg;  --d: calc( 3 * var(--delay-step)); }
+  .loader span:nth-child(5)  { --deg:120deg;  --d: calc( 4 * var(--delay-step)); }
+  .loader span:nth-child(6)  { --deg:150deg;  --d: calc( 5 * var(--delay-step)); }
+  .loader span:nth-child(7)  { --deg:180deg;  --d: calc( 6 * var(--delay-step)); }
+  .loader span:nth-child(8)  { --deg:210deg;  --d: calc( 7 * var(--delay-step)); }
+  .loader span:nth-child(9)  { --deg:240deg;  --d: calc( 8 * var(--delay-step)); }
+  .loader span:nth-child(10) { --deg:270deg;  --d: calc( 9 * var(--delay-step)); }
+  .loader span:nth-child(11) { --deg:300deg;  --d: calc(10 * var(--delay-step)); }
+  .loader span:nth-child(12) { --deg:330deg;  --d: calc(11 * var(--delay-step)); }
+  .label{ margin-top:16px; text-align:center; font:400 14px/1 var(--font); color:var(--fg) }
+
+  /* 데모용 임시 배경(파셜에서 덮어씀) */
+
+  /* #home { background:#ffffff; color:#fff; } */
+  /* #more { background:#fff; } */
+
+  /* #intro, #intro iframe {
+    width: 100vw;
+    height: 100vh;
+    border: 0;
+    display: block;
+  } */

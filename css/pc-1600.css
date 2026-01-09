@@ -1,0 +1,57 @@
+@media(max-width:1600px){
+  /* =========project index */
+.project-d-ul {
+    flex: 1;
+    display: grid;
+    padding-left: 2rem;
+    grid-template-columns: 1fr;
+}
+.menu-sticy-area{
+    display: none;;
+}
+}
+@media(max-width:1440px){
+  /* ========header======= */
+  /* header {
+    padding: 0.5rem 2rem;
+} */
+
+  header ul {
+    gap: 1rem;
+}
+    .skills h1{
+      font-size: 5rem;
+      margin-right: 5rem;
+}
+.koo img {
+    width: 350px;
+    aspect-ratio: 600/752;
+}
+.koo2 img {
+    width: 200px;
+}
+/* /* =======project index */
+.project-intro h3 {
+    width: auto;
+    font-family: 'newyork';
+
+}
+.p-title p{
+    width: 14rem;
+}
+.p-title {
+    flex: 2;
+    display: block;
+    flex-direction: column;
+    align-items: center;
+}
+.project-txt .project-a {
+    flex-direction: column;
+}
+}
+@media(max-width:1240px){
+    .arrow {
+    width: 150px;
+    left: 10%;
+}
+}

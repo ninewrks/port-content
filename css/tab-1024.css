@@ -1,0 +1,266 @@
+@media (max-width: 1200px) {
+  html {
+    font-size: 16px;
+  }
+
+  .menu-sticy-area {
+    display: flex;
+    justify-content: flex-end;
+    position: sticky;
+    left: 0;
+    top: 0;
+    /* border: 1px solid red; */
+    padding: 1rem;
+  }
+
+  .menu-mo {
+    display: block;
+    /* position: fixed; */
+    /* top: 16px; */
+    /* right: 16px; */
+    z-index: 999;
+  }
+
+  .wide-frame {
+    width: auto;
+  }
+  .txt {
+    padding: 2rem;
+  }
+
+  .common-frame {
+    margin: 0 2rem;
+    position: relative;
+    z-index: 100;
+  }
+
+  /* =========================
+   MOBILE HEADER (max-width:1200)
+========================= */
+  @media (max-width: 1200px) {
+    /* about 이후 햄버거 노출 */
+    body.show-mobile-menu .menu-mo {
+      display: block;
+    }
+
+    header .logo {
+      display: none;
+    }
+
+    header {
+      position: fixed;
+      top: 0;
+      right: 0;
+      left: initial;
+
+      width: 70%;
+      max-width: 280px;
+      height: 100vh;
+
+      background: #fff;
+
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
+      z-index: 1000;
+    }
+
+    header.is-open {
+      transform: translateX(0);
+    }
+
+    /* ✅ 모바일에서 ul이 아래로 분산되는 거 방지 */
+    header ul {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+
+      justify-content: flex-start; /* ⭐ 아래로 밀림 방지 */
+      height: auto; /* ⭐ 100% 먹는 거 방지 */
+
+      padding: 80px 24px 24px;
+      gap: 1.2rem;
+
+      margin: 0;
+      list-style: none;
+    }
+
+    header a {
+      color: #2055ca;
+      text-decoration: none;
+    }
+
+    .menu-close {
+      display: block;
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      font-size: 22px;
+      color: #2055ca;
+      background: transparent;
+      border: 0;
+    }
+
+    .menu-overlay.is-open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .menu-mo {
+      position: fixed;
+      top: 14px;
+      right: 14px;
+
+      z-index: 1000; /* ✅ overlay/header보다 위 */
+      width: 52px; /* ✅ 터치 영역 크게 */
+      height: 52px;
+
+      display: none;
+      align-items: center;
+      justify-content: center;
+
+      border: 0;
+
+      pointer-events: auto;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .menu-mo.is-hidden {
+      display: none !important;
+    }
+
+    /* about 이후에만 보이기 */
+    body.show-mobile-menu .menu-mo {
+      display: inline-flex; /* ✅ block보다 안정적 */
+    }
+    /* =========================
+     CONTACT dropdown (모바일)
+  ========================= */
+
+    /* CONTACT li를 column으로 만들어서 dropdown이 "바로 아래" 뜨게 */
+    header ul .nav-contact {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      width: 100%;
+      position: static; /* 모바일에서는 흐름 따라가게 */
+    }
+
+    /* CONTACT 텍스트(클릭 영역) */
+    header ul .nav-contact > a {
+      display: block;
+      width: 100%;
+    }
+
+    /* dropdown 기본: 숨김 */
+    .nav-contact .dropdown {
+      display: none; /* ✅ 기본 숨김 */
+      position: static;
+
+      width: 100%;
+      margin: 0.5rem 0 0; /* ✅ CONTACT 바로 아래 간격 */
+      padding-left: 1rem; /* ✅ 들여쓰기 */
+
+      background: transparent;
+      box-shadow: none;
+
+      list-style: none;
+    }
+
+    /* dropdown 열림 */
+    .nav-contact .dropdown.show {
+      display: flex; /* ✅ 세로로 */
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+
+    /* 서브 링크들 */
+    .nav-contact .dropdown li {
+      width: 100%;
+    }
+
+    .nav-contact .dropdown li a {
+      display: inline-block;
+      width: fit-content;
+      font-size: 0.9rem; /* 모바일에서 너무 작으면 키워도 됨 */
+    }
+  }
+
+  /* =============about=========== */
+  .koo2 {
+    bottom: -3rem;
+  }
+  .koo img {
+    width: 300px;
+    aspect-ratio: 600/752;
+  }
+  .koo2 img {
+    width: 200px;
+  }
+  /* ======skill=========== */
+  .skills h1 {
+    margin-right: 0;
+    font-size: 6rem;
+  }
+
+  /* ======about2 / cert-list=========== */
+  .about2 h2 {
+    font-size: 4rem;
+  }
+  .cert-list {
+    /* background: #f5f5f5; */
+    padding: 0;
+    width: 100%;
+    margin: 0;
+  }
+
+  .cert-item {
+    padding: 1.2rem 1.5rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  .cert-name {
+    min-width: 150px;
+    max-width: 150px;
+    padding-right: 2rem;
+    font-size: 0.8rem;
+  }
+  /* =============project index */
+  .tag-chip {
+    border: 1px solid #3d3d3d;
+    text-transform: uppercase;
+    border-radius: 20px;
+    padding: 0.15rem 0.5rem;
+    font-size: 0.7rem;
+    /* height: 26px; */
+    /* margin-bottom: 1rem; */
+  }
+  .p-title {
+    flex: 2;
+    display: block;
+    flex-direction: column;
+    /* align-items: center; */
+    margin-bottom: 1rem;
+  }
+  .project-intro h3 {
+    font-size: 2rem;
+  }
+  /* ======slide button */
+  .swiper-button-next {
+    height: 20px !important;
+  }
+  .swiper-button-prev {
+    height: 20px !important;
+  }
+  /* ========detail page */
+  .detail-swiper figure {
+    height: 400px;
+  }
+  /* =======project */
+  .arrow {
+    width: 100px;
+    left: 7%;
+  }
+  .project-tt {
+    margin-bottom: 1rem;
+  }
+}

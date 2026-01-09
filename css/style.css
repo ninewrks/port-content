@@ -1,0 +1,1080 @@
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+html {
+  font-family: "zal", "sans";
+  font-size: 18px;
+  color: #3d3d3d;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+p {
+  line-height: 1.5;
+  font-size: 0.8rem;
+}
+.wide-frame {
+  width: auto;
+  /* margin: 0 5rem; */
+}
+button {
+  color: #3d3d3d;
+}
+
+/* ============포인터 */
+/* section{
+    height:100vh; scroll-snap-align:start;
+  } */
+
+.long-wrap {
+  /* height: 400vh; */
+  width: 100%;
+  z-index: 5;
+  position: relative;
+  pointer-events: auto;
+  /* 이거 키면 포인터 효과 따라옴 */
+}
+.lil-gui {
+  display: none !important;
+}
+
+/* 배경처럼 화면을 덮는 WebGL 캔버스 (뒤) */
+canvas {
+  position: fixed; /* 화면 고정 */
+  inset: 0; /* top:0; right:0; bottom:0; left:0; */
+  width: 100%;
+  height: 100%;
+  z-index: -1; /* 가장 뒤 */
+  display: block;
+  pointer-events: none;
+}
+
+/* 위에 얹힐 텍스트 (앞) */
+.overlay-contents {
+  height: 100vh;
+  width: 100%;
+  position: relative;
+  /* top: 50%; */
+  /* left: 50%; */
+  /* transform: translate(-50%, -50%); */
+  z-index: 10;
+  color: #3d3d3d;
+  /* font-family: "Pretendard", "Inter", system-ui, -apple-system, sans-serif; */
+  pointer-events: auto;
+}
+
+.txt {
+  padding: 3rem;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  justify-content: space-between;
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+}
+.name {
+  font-family: "zal";
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  font-weight: 400;
+}
+
+.job {
+  display: flex;
+  align-items: flex-start;
+  gap: 2rem;
+}
+.job {
+  font-family: "zal";
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  font-weight: 400;
+}
+
+.ideas {
+  font-family: "newyork";
+  font-size: 2rem;
+  line-height: 0.8;
+}
+.into {
+  font-family: "zal";
+  font-weight: 300;
+  font-size: 2rem;
+  line-height: 0.8;
+  margin-left: 1rem;
+}
+.cre {
+  font-family: "newyork";
+  font-size: 2rem;
+  line-height: 0.8;
+  margin-left: 6.5rem;
+}
+.slogan {
+  position: absolute;
+  bottom: 6rem;
+}
+.scroll {
+  width: 4rem;
+  position: absolute;
+  bottom: 6rem;
+  left: 50%;
+  transform: translateX(-50%);
+}
+/* ==========about =============
+  ================================*/
+/* 공통 버튼 초기화 */
+.menu-mo,
+.menu-close {
+  display: none;
+}
+
+/* 오버레이 기본 숨김 */
+.menu-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+  z-index: 90;
+}
+
+.myswiper {
+  width: 100%;
+}
+
+@media (min-width: 2000px) {
+  .wide-frame {
+    width: 1920px;
+    margin: 0 auto;
+  }
+}
+
+/* about 섹션 이후부터 헤더 고정 (PC만) */
+@media (min-width: 1025px) {
+  body.show-header-fixed header {
+    box-shadow: none;
+  }
+}
+
+header ul {
+  display: flex;
+  /* height: 100px; */
+  align-items: center;
+  justify-content: center;
+  /* gap: 2rem; */
+}
+
+.about .t1 {
+  font-size: 1rem;
+}
+
+.t1 a {
+  font-weight: 600;
+  color: var(--deep);
+  border-bottom: 1px solid var(--deep);
+  display: flex;
+  align-items: flex-end;
+  width: fit-content;
+}
+
+.t1 a img {
+  color: #3d3d3d;
+}
+header ul {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+header .logo {
+  display: block;
+}
+.logo {
+  /* height: 100px; */
+  width: 220px;
+  /* width: 100%; */
+}
+.logo img {
+  height: 100%;
+}
+header ul li {
+  text-transform: uppercase;
+  font-family: "zal";
+  color: var(--deep);
+}
+.common-frame {
+  margin: 0 5rem;
+}
+.about {
+  display: flex;
+  justify-content: space-between;
+  align-items: self-start;
+  height: 100%;
+  position: relative;
+}
+.about h1 {
+  font-size: 6rem;
+  font-family: "newyork";
+  color: var(--deep);
+  margin-top: 3rem;
+  /* margin-bottom: 1rem; */
+}
+.about p {
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  line-height: 1.9;
+}
+.self {
+  font-size: 1rem;
+  margin-top: 1rem;
+  color: var(--deep);
+  line-height: 1.3;
+}
+.self span {
+  font-weight: 600;
+}
+.koo img {
+  width: 500px;
+  aspect-ratio: 600/752;
+}
+.koo2 img {
+  width: 300px;
+}
+
+.about .t1 {
+  margin-left: 4rem;
+}
+.about-t a {
+  margin-top: 0.5rem;
+}
+
+.koo {
+  /* padding-bottom: 2rem; */
+  /* width: 450px; */
+  margin-top: 19rem;
+}
+.koo2 {
+  position: absolute;
+  /* right: -120px; */
+  left: 4.5rem;
+  bottom: 0;
+}
+
+/* ======================
+============about2 / cert-list */
+.about2 {
+  margin-top: 6rem;
+  margin-bottom: 6rem;
+}
+
+.about2 h2 {
+  font-size: 3rem;
+  font-family: "newyork";
+  color: #3d3d3d;
+  margin-bottom: 3rem;
+}
+.all-cert {
+  width: 100%;
+  display: flex;
+  justify-content: right;
+}
+.cert-list {
+  /* background: #f5f5f5; */
+  padding: 0;
+  /* width: 40%; */
+  margin: 0;
+}
+
+.cert-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 0.5rem 2rem;
+  border-bottom: 1px solid #3d3d3d;
+}
+
+.cert-item:last-child {
+  border-bottom: none;
+}
+
+.cert-name {
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #3d3d3d;
+  min-width: 180px;
+  max-width: 180px;
+  margin: 0;
+  padding-right: 3rem;
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+
+.cert-org {
+  font-weight: 400;
+  color: #3d3d3d;
+  font-size: 0.7rem;
+  margin: 0;
+  flex: 1;
+  line-height: 1.5;
+}
+
+.cert-date {
+  font-weight: 400;
+  color: #3d3d3d;
+  font-size: 0.7rem;
+  margin: 0;
+  margin-left: 1rem;
+  line-height: 1.5;
+}
+
+/* ======================
+============skill */
+/* 
+    body {
+      background: #000;
+      font-family: Helvetica Neue, Helvetica, Arial, sans-serif;
+      font-size: 14px;
+      color: #fff;
+      margin: 0;
+      padding: 0;
+    } */
+
+.myswiper {
+  margin-top: 5rem !important;
+}
+.skills {
+  /* margin-top: 6rem; */
+  text-align: center;
+}
+.skills h1 {
+  font-size: 5rem;
+  font-family: "newyork";
+  /* margin-right: 13.5rem; */
+  color: #3d3d3d;
+}
+.myswiper {
+  width: 100%;
+  height: 100%;
+}
+.skill-slide {
+  font-size: 0.8rem;
+  /* background: #444; */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.skill-slide {
+  /* display: flex !important;
+  align-items: center !important; */
+  color: var(--deep);
+}
+.skill-wrap {
+  height: auto !important;
+}
+.skill-box h2 {
+  font-family: "newyork";
+  font-size: 1.5rem;
+  /* color: #3d3d3d; */
+  padding: 1rem;
+}
+.skill-box {
+  margin-bottom: 1rem;
+  width: 100% !important;
+  height: 200px;
+  border-top: 1px solid var(--deep);
+  padding: 1rem 0;
+}
+.skill-box p {
+  width: 70%;
+  margin: 0 auto;
+}
+.skill-slide h4 {
+  text-align: left;
+  padding: 0 1rem;
+  font-family: "newyork";
+}
+/* ============project intro=========== */
+.tag-chip {
+  border: 1px solid #3d3d3d;
+  text-transform: uppercase;
+  border-radius: 20px;
+  padding: 0.25rem 0.5rem;
+  /* height: 26px; */
+  /* margin-bottom: 1rem; */
+}
+.project-intro h1 {
+  font-size: 6rem;
+  font-family: "newyork";
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.project-li {
+  border-bottom: 1px solid #3d3d3d;
+  padding: 1rem;
+}
+.project-txt {
+  display: flex;
+}
+.p-title {
+  flex: 2;
+  display: flex;
+  align-items: center;
+  margin-right: 3rem;
+}
+.p-title p {
+  width: 20rem;
+}
+.project-txt .project-a {
+  display: flex;
+}
+
+.project-d-ul {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.project-d-ul li {
+  list-style: circle;
+  padding: 0.5rem;
+}
+.project-intro h3 {
+  width: 26rem;
+  font-family: "newyork";
+  font-size: 2.5rem;
+  padding-bottom: 1rem;
+}
+.project-li-last {
+  border-bottom: none;
+  display: flex;
+  justify-content: center;
+  padding: 1rem;
+  margin-top: 5rem;
+}
+.project-li-last > .project-txt {
+  flex-direction: column;
+}
+.project-d-ul-last {
+  margin-left: 1rem;
+}
+.project-d-ul-last li {
+  list-style: circle;
+  font-size: 0.8rem;
+  padding: 0.5rem;
+}
+.project-etc h3 {
+  font-size: 2rem;
+  width: auto;
+}
+.project-etc p {
+  font-size: 0.7rem;
+  margin-bottom: 1rem;
+  width: auto;
+}
+#other-tag {
+  font-size: 0.5rem;
+}
+.project-etc {
+  margin-right: 1rem;
+}
+/* ============project pop-up*/
+/* index 설정 */
+#pop-up,
+#poster {
+  scroll-margin-top: 6rem; /* 고정 헤더 있을 때 유용함 */
+}
+
+.pop-up__scrollbar {
+  height: 4px;
+  background: #dbe3ff; /* 옅은 잉크 */
+}
+.pop-up__scrollbar .swiper-scrollbar-drag,
+.banner-swiper-scrollbar .swiper-scrollbar-drag {
+  background: #bebebe;
+}
+/* .swiper-slide img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    } */
+.design-modal__tags {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.design-modal__text h1 {
+  font-family: "newyork";
+}
+.pop-up__title {
+  font-family: "zal";
+  /* text-transform: uppercase; */
+  font-weight: 300;
+  font-size: 2rem;
+  /* color: var( --deep); */
+}
+.pop-up__title span {
+  font-family: "newyork";
+}
+
+.pop-up__desc {
+  font-size: 0.8rem;
+  /* color: var( --deep); */
+}
+.pop-up__title-area {
+  display: grid;
+  grid-template-columns: 4fr 2fr;
+  gap: 0;
+  justify-content: space-between;
+  margin-bottom: 6rem;
+}
+.pop-up__list {
+  margin-bottom: 2rem;
+}
+.pop-up__name {
+  text-transform: uppercase;
+  font-family: "zal";
+  font-weight: 600;
+  color: var(--deep);
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.pop-up__sub {
+  /* color: var( --deep); */
+  font-size: 0.7rem;
+}
+.pop-up__thumb {
+  position: relative;
+  overflow: hidden;
+}
+
+/* 이미지 블러 오버레이 */
+.pop-up__overlay {
+  position: absolute;
+  inset: 0;
+
+  /* 이미지에만 블러 & 화이트 오버레이 */
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+
+  background: rgba(255, 255, 255, 0.4);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+/* 텍스트 스타일 */
+.pop-up__overlay span {
+  font-family: "newyork";
+  font-size: 1.2rem;
+  /* letter-spacing: 0.15em; */
+  /* text-transform: uppercase; */
+  color: var(--deep);
+  /* font-weight: 600; */
+}
+/* hover 시 오버레이 활성화 */
+.pop-up__thumb:hover .pop-up__overlay {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ============ MODAL (최종 정리본) ============ */
+
+/* 모달 전체 래퍼 */
+.design-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: none;
+}
+
+/* 열렸을 때 */
+.design-modal.is-open {
+  display: block;
+}
+
+/* 어두운 오버레이 */
+.design-modal__overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+/* 닫기 버튼 */
+.design-modal__close {
+  position: absolute; /* fixed → absolute */
+  top: 1rem;
+  right: 1rem;
+  font-size: 1.5rem;
+  color: var(--deep);
+  z-index: 2; /* 내용 위로 올라오게 */
+}
+
+.design-modal__content {
+  position: relative;
+  max-width: 1000px;
+  /* width: min(1000px, calc(100% - 4rem)); */
+  margin: 5vh auto;
+  background: #fff;
+  padding: 4rem 3rem;
+  z-index: 1000000;
+  max-height: 90vh;
+  overflow: hidden;
+}
+
+/* 내부 레이아웃 박스 */
+.modal__box {
+  display: flex;
+  gap: 3rem;
+  min-height: 0;
+  align-items: flex-start;
+}
+/* ✨ 포스터만 스크롤 영역 (여기 핵심!) */
+.design-modal__figure {
+  flex: 2;
+  max-height: 85vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  min-height: 0;
+}
+
+/* 포스터 이미지 */
+.design-modal__figure img {
+  width: 100%;
+  display: block;
+}
+
+/* 텍스트 영역 */
+.design-modal__text {
+  flex: 1;
+  color: #3d3d3d;
+  padding: 1rem 0;
+  margin-bottom: 10rem;
+}
+
+.design-modal__tags {
+  display: inline-flex;
+  gap: 0.5rem;
+}
+
+.design-modal__desc {
+  padding-bottom: 3rem;
+  border-bottom: 1px solid #3d3d3d;
+}
+.design-modal__subtitle {
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+.design-modal__text h1 {
+  font-size: 2rem;
+  font-family: "newyork";
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #3d3d3d;
+}
+.design-modal__text span {
+  font-family: "newyork";
+}
+#designModalTitle {
+  margin-top: 1rem;
+  font-weight: 600;
+}
+/* ============각섹션 마진  */
+section {
+  margin-bottom: 10rem;
+}
+/* ============other archive */
+.a-project-etc {
+  font-family: "newyork";
+  font-size: 3rem;
+  margin-bottom: 3rem;
+}
+.a-project-txt {
+  display: flex;
+  justify-content: center;
+}
+.a-fold {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+}
+.a-project-etc p {
+  text-align: center;
+}
+.a-fold figcaption {
+  font-size: 0.8rem;
+  width: 150px;
+}
+.a-fold img {
+  width: 150px;
+}
+/* ========detail page */
+.detail-swiper figure {
+  height: 700px;
+}
+
+/* =========footer */
+.end-banner {
+  width: 100%;
+  overflow: hidden;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1.2rem 0;
+  background-color: #fffbdb;
+  height: 30px;
+}
+
+.end-track {
+  display: flex;
+  white-space: nowrap;
+  gap: 4rem; /* 문장 사이 간격 */
+  animation: slide 20s linear infinite;
+}
+
+.end-track span {
+  font-size: 1.4rem;
+  opacity: 0.85;
+  display: inline-block;
+}
+.f-contect {
+  text-align: center;
+  font-size: 0.8rem;
+  color: #b3dfff;
+}
+
+/* 슬라이드 애니메이션 */
+@keyframes slide {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+/* .footer{margin: 1rem;} */
+.back {
+  background-color: var(--deep);
+  height: 600px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+.b-logo {
+  height: 200px;
+  margin-bottom: 2rem;
+}
+.last-job {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3rem;
+  color: #fffbdb;
+  font-weight: 2rem;
+  margin-bottom: 1rem;
+}
+.last-job img {
+  height: 16px;
+}
+.back p {
+  text-align: center;
+  color: #fffbdb;
+  margin-bottom: 1rem;
+}
+/*================== 전체 박스 */
+.project-frame {
+  display: flex;
+  align-items: stretch;
+  flex-direction: column;
+}
+/* .project-frame h4 {
+    font-family: 'newyork';
+    text-align: center;
+    font-size: 2rem;
+    margin-bottom: 2rem;
+} */
+.project-box {
+  /* background: #000000;     */
+  color: #3d3d3d;
+  padding: 4rem 6rem;
+  display: flex;
+}
+.project-tt {
+  margin: 0 auto;
+  width: 400px;
+  margin-bottom: 3rem;
+  font-size: 2rem;
+}
+.project-tt span {
+  font-family: "newyork";
+}
+/* 가운데 영역: 화살표 + 프로젝트 링크 리스트 */
+
+/* 오른쪽 텍스트/링크 묶음 */
+.project-sticky-menu {
+  position: sticky;
+  top: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  list-style: none;
+  margin-bottom: 3rem;
+  width: 400px;
+}
+/* 첫 번째 li: 프로젝트 타이틀 */
+.project-sticky-menu > li:first-child h4 {
+  font-family: "newyork";
+  font-size: 1.8rem;
+  font-weight: 500;
+  margin-bottom: 1.5rem;
+}
+/* 링크 리스트 공통 */
+.link-item {
+  border-bottom: 1px solid #3d3d3d;
+  padding: 0.5rem;
+}
+
+.link-item a {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-decoration: none;
+  /* padding: 0.9rem 0 0.7rem; */
+  color: #3d3d3d;
+  /* background: #000; */
+  background-color: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px); /* Safari 지원 */
+  font-size: 0.8rem;
+}
+.arrow {
+  width: 200px;
+  position: absolute;
+  left: 15%;
+}
+/* 화살표 아이콘 */
+.arrow-icon {
+  display: inline-block;
+  font-size: 1rem;
+  transform: translateY(1px);
+}
+
+/* 호버 시 살짝 연해지게 */
+.link-item a:hover {
+  opacity: 0.7;
+}
+.project-frame .tag-chip {
+  width: fit-content;
+}
+/* ====== 아래 정보 바 ====== */
+
+.project-bar {
+  /* background: #000; */
+  color: #3d3d3d;
+}
+.bar-list {
+  display: flex;
+  justify-content: center;
+  border-bottom: 1px solid #3d3d3d;
+  border-top: 1px solid #3d3d3d;
+}
+.bar-list li {
+  padding: 0.5rem 2rem;
+  border-left: 1px solid #3d3d3d;
+}
+.project-bar .bar-list li:first-child {
+  /* padding: 0.5rem; */
+  border-left: none;
+}
+/* =========================
+   HEADER PATCH (Safari-safe)
+   - 이 블록을 CSS 맨 마지막에!
+========================= */
+
+/* iOS Safari 폰트 자동 확대 방지 */
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+/* 헤더 높이 (JS로 덮어쓸 수 있음) */
+:root {
+  --header-h: 100px;
+}
+
+header {
+  position: fixed;
+  inset: 0 0 auto 0; /* top:0 left:0 right:0 */
+  height: 100px;
+  z-index: 1000;
+
+  padding: 0.5rem 5rem;
+  box-sizing: border-box;
+
+  background: rgba(
+    255,
+    255,
+    255,
+    0.18
+  ); /* ✅ 투명만 쓰면 사파리에서 글자 안 보이는 경우 있음 */
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+
+  transform: translateY(0);
+  transition: transform 0.4s ease;
+
+  overflow-x: clip; /* ✅ safari 가로 삐짐 방지 (지원 안하면 hidden처럼 동작) */
+}
+
+/* 인트로/프로젝트에서 숨김 */
+header.header-intro-hide,
+header.header-project-hide {
+  transform: translateY(calc(-1 * var(--header-h)));
+}
+
+/* 프로젝트에서 다시 보임 */
+header.header-project-show {
+  transform: translateY(0);
+}
+
+/* ===== nav layout ===== */
+header ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  width: 100%;
+  /* height: 100%; */
+
+  min-width: 0; /* ✅ Safari flex overflow 핵심 */
+  gap: 0; /* ✅ space-between 쓰면 gap 빼는 게 안정 */
+}
+
+/* 모든 li 수축 가능하게 */
+header ul > li {
+  min-width: 0;
+  flex: 0 1 auto;
+  display: flex;
+  align-items: center;
+}
+
+/* 로고만 고정폭 */
+header .logo {
+  flex: 0 0 220px;
+  width: 220px;
+  display: block;
+}
+header .logo img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* 메뉴 링크(글자) */
+header a {
+  color: var(--deep, #3d3d3d);
+  text-decoration: none;
+  font-family: "zal";
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+
+  white-space: nowrap; /* ✅ 줄바꿈 방지 */
+  line-height: 1; /* ✅ 사파리에서 line-height 흔들림 방지 */
+}
+
+/* 메뉴들이 너무 길어서 밀리면 줄어들게(선택) */
+header a {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ===== contact dropdown ===== */
+.nav-contact {
+  position: relative;
+}
+
+/* dropdown 컨테이너 (배경 없음) */
+.nav-contact .dropdown {
+  position: absolute;
+  top: calc(100% + 50px);
+  right: -50px;
+
+  margin: 0;
+  padding: 0; /* 🔹 패널 느낌 제거 */
+  list-style: none;
+
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+
+  min-width: 180px;
+
+  background: transparent; /* 🔹 ul 배경 제거 */
+  border-radius: 0;
+
+  transform: translateY(-6px);
+  opacity: 0;
+  pointer-events: none;
+
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+/* 열림 */
+.nav-contact .dropdown.show {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+/* 개별 아이템 */
+.nav-contact .dropdown li {
+  display: flex;
+}
+
+/* ⭐ 각 메뉴 버튼처럼 보이게 */
+.nav-contact .dropdown li a {
+  display: inline-flex;
+  align-items: center;
+
+  width: fit-content; /* 🔹 글자만큼만 배경 */
+  padding: 0.45rem 0.9rem;
+
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #2055ca;
+  text-transform: none;
+  white-space: nowrap;
+
+  background: rgba(255, 255, 255, 0.5); /* ⭐ 개별 배경 */
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+
+  border-radius: 999px; /* ⭐ pill shape */
+
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+
+/* hover 효과 */
+.nav-contact .dropdown li a:hover {
+  background: rgba(32, 85, 202, 0.12);
+  transform: translateY(-1px);
+}

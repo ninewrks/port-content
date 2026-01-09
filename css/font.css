@@ -1,0 +1,12 @@
+@font-face {
+    font-family: 'zal';
+    src: url(../font/Zalando_Sans_SemiExpanded/ZalandoSansSemiExpanded-VariableFont_wght.ttf);
+}
+@font-face{
+    font-family: 'newyork';
+    src: url(../font/newyork/NewYork\ PERSONAL\ USE.otf);
+}
+@font-face{
+    font-family: 'sans';
+    src: url(../font/NotoSansKR-VariableFont_wght.ttf);
+}

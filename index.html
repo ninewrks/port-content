@@ -1,0 +1,1599 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>koo's portfolio</title>
+<link rel="stylesheet" href="./css/reset.css?v=3">
+<link rel="stylesheet" href="./css/font.css?v=3">
+<link rel="stylesheet" href="./css/loading.css?v=3">
+
+<link rel="stylesheet" href="./css/style.css?v=3">
+
+<link rel="stylesheet" href="./css/pc-1600.css?v=3">
+<link rel="stylesheet" href="./css/tab-1024.css?v=3">
+<link rel="stylesheet" href="./css/mo-768.css?v=3">
+
+<link rel="icon" type="image/svg" href="./img/favicon.svg">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@12/swiper-bundle.min.css" />
+
+</head>
+<body>
+
+<!-- 로딩 오버레이 -->
+<div id="preloader" aria-live="polite">
+  <div class="positon">
+    <div class="loader" aria-hidden="true">
+      <span></span><span></span><span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <div class="label">Loading&nbsp;<span id="percent">0%</span></div>
+  </div>
+</div>
+
+    <canvas></canvas>
+
+
+<script type="x-shader/x-fragment" id="vertShader">
+    precision highp float;
+
+    varying vec2 vUv;
+    attribute vec2 a_position;
+
+    varying vec2 vL;
+    varying vec2 vR;
+    varying vec2 vT;
+    varying vec2 vB;
+    uniform vec2 u_texel;
+
+    void main () {
+        vUv = .5 * (a_position + 1.);
+        vL = vUv - vec2(u_texel.x, 0.);
+        vR = vUv + vec2(u_texel.x, 0.);
+        vT = vUv + vec2(0., u_texel.y);
+        vB = vUv - vec2(0., u_texel.y);
+        gl_Position = vec4(a_position, 0., 1.);
+    }
+</script>
+
+<script type="x-shader/x-fragment" id="fragShaderAdvection">
+    precision highp float;
+    precision highp sampler2D;
+
+    varying vec2 vUv;
+    uniform sampler2D u_velocity_texture;
+    uniform sampler2D u_input_texture;
+    uniform vec2 u_texel;
+    uniform float u_dt;
+    uniform float u_use_text;
+    uniform sampler2D u_text_texture;
+
+    vec4 bilerp (sampler2D sam, vec2 uv, vec2 tsize) {
+        vec2 st = uv / tsize - 0.5;
+
+        vec2 iuv = floor(st);
+        vec2 fuv = fract(st);
+
+        vec4 a = texture2D(sam, (iuv + vec2(0.5, 0.5)) * tsize);
+        vec4 b = texture2D(sam, (iuv + vec2(1.5, 0.5)) * tsize);
+        vec4 c = texture2D(sam, (iuv + vec2(0.5, 1.5)) * tsize);
+        vec4 d = texture2D(sam, (iuv + vec2(1.5, 1.5)) * tsize);
+
+        return mix(mix(a, b, fuv.x), mix(c, d, fuv.x), fuv.y);
+    }
+
+    void main () {
+        vec2 coord = vUv - u_dt * bilerp(u_velocity_texture, vUv, u_texel).xy * u_texel;
+        float text = texture2D(u_text_texture, vec2(vUv.x, 1. - vUv.y)).r;
+        float dissipation = (.96 + text * .04 * u_use_text);
+
+        gl_FragColor = dissipation * bilerp(u_input_texture, coord, u_texel);
+        gl_FragColor.a = 1.;
+    }
+</script>
+
+<script type="x-shader/x-fragment" id="fragShaderDivergence">
+    precision highp float;
+    precision highp sampler2D;
+
+    varying highp vec2 vUv;
+    varying highp vec2 vL;
+    varying highp vec2 vR;
+    varying highp vec2 vT;
+    varying highp vec2 vB;
+    uniform sampler2D u_velocity_texture;
+
+    void main () {
+        float L = texture2D(u_velocity_texture, vL).x;
+        float R = texture2D(u_velocity_texture, vR).x;
+        float T = texture2D(u_velocity_texture, vT).y;
+        float B = texture2D(u_velocity_texture, vB).y;
+
+        float div = .6 * (R - L + T - B);
+        gl_FragColor = vec4(div, 0., 0., 1.);
+    }
+</script>
+
+<script type="x-shader/x-fragment" id="fragShaderPressure">
+    precision highp float;
+    precision highp sampler2D;
+
+    varying highp vec2 vUv;
+    varying highp vec2 vL;
+    varying highp vec2 vR;
+    varying highp vec2 vT;
+    varying highp vec2 vB;
+    uniform sampler2D u_pressure_texture;
+    uniform sampler2D u_divergence_texture;
+    uniform sampler2D u_text_texture;
+
+    void main () {
+
+        float text = texture2D(u_text_texture, vec2(vUv.x, 1. - vUv.y)).r;
+
+        float L = texture2D(u_pressure_texture, vL).x;
+        float R = texture2D(u_pressure_texture, vR).x;
+        float T = texture2D(u_pressure_texture, vT).x;
+        float B = texture2D(u_pressure_texture, vB).x;
+        float C = texture2D(u_pressure_texture, vUv).x;
+        float divergence = texture2D(u_divergence_texture, vUv).x;
+
+        float pressure = (L + R + B + T - divergence) * 0.25;
+        pressure += (.2 * text);
+
+        gl_FragColor = vec4(pressure, 0., 0., 1.);
+    }
+</script>
+
+<script type="x-shader/x-fragment" id="fragShaderGradientSubtract">
+    precision highp float;
+    precision highp sampler2D;
+
+    varying highp vec2 vUv;
+    varying highp vec2 vL;
+    varying highp vec2 vR;
+    varying highp vec2 vT;
+    varying highp vec2 vB;
+    uniform sampler2D u_pressure_texture;
+    uniform sampler2D u_velocity_texture;
+
+    uniform sampler2D u_text_texture;
+
+    void main () {
+        float L = texture2D(u_pressure_texture, vL).x;
+        float R = texture2D(u_pressure_texture, vR).x;
+        float T = texture2D(u_pressure_texture, vT).x;
+        float B = texture2D(u_pressure_texture, vB).x;
+        vec2 velocity = texture2D(u_velocity_texture, vUv).xy;
+        velocity.xy -= vec2(R - L, T - B);
+        gl_FragColor = vec4(velocity, 0., 1.);
+    }
+</script>
+
+<script type="x-shader/x-fragment" id="fragShaderPoint">
+    precision highp float;
+    precision highp sampler2D;
+
+    varying vec2 vUv;
+    uniform sampler2D u_input_texture;
+    uniform float u_ratio;
+    uniform vec3 u_point_value;
+    uniform vec2 u_point;
+    uniform float u_point_size;
+
+    uniform sampler2D u_text_texture;
+
+
+    void main () {
+        vec2 p = vUv - u_point.xy;
+        p.x *= u_ratio;
+        vec3 splat = pow(2., -dot(p, p) / u_point_size) * u_point_value;
+
+        float text = texture2D(u_text_texture, vec2(vUv.x, 1. - vUv.y)).r;
+        splat *= (.7 + .2 * text);
+
+        vec3 base = texture2D(u_input_texture, vUv).xyz;
+        gl_FragColor = vec4(base + splat, 1.);
+    }
+</script>
+<script type="x-shader/x-fragment" id="fragShaderOutputShader">
+    precision highp float;
+    precision highp sampler2D;
+
+    varying vec2 vUv;
+    uniform sampler2D u_output_texture;
+    uniform sampler2D u_text_texture;
+
+    void main () {
+        vec3 C = texture2D(u_output_texture, vUv).rgb;
+        float text = texture2D(u_text_texture, vec2(vUv.x, 1. - vUv.y)).r; 
+
+        // 📄 배경을 순백(vec3(1.)) 
+        gl_FragColor = vec4(vec3(1.00, 0.99, 0.98) - C, 1.0);
+    }
+</script>
+
+</script>
+    <script type="module" src="./js/script.js"></script>
+
+
+  <main class="wide-frame">
+
+          <button class="menu-mo" aria-label="메뉴 열기">
+              <img src="./img/Menu.svg" alt="menu">
+          </button>
+
+    <header>
+          <!-- ✖ 닫기 버튼 추가 -->
+          <button class="menu-close" aria-label="메뉴 닫기">✕</button>
+        
+          <ul class="wide-frame">
+            <li><a href="#intro">Intro</a></li>
+            <li><a href="#about">About me</a></li>
+            <li><a href="#skills">Skills</a></li>
+            <li class="logo"><img src="./img/slogan.svg" alt="slogan"></li>
+            <li><a href="#project">Projects</a></li>
+            <li class="nav-contact has-dropdown">
+              <a href="#">Contact</a>
+                <ul class="dropdown">
+                  <li><a href="tel:01073136535">Phone</a></li>
+                  <li><a href="mailto:ninewrks@gmail.com">Email</a></li>
+                  <li><a href="./img/resume_kooyeonseo.pdf" target="_blank">Resume</a></li>
+                </ul>
+            </li>
+            <li><a href="#outro">Outro</a></li>
+          </ul>
+        </header>
+     <div class="overlay-contents" id="intro">
+        <div class="txt">
+          <div class="top">
+              <div class="job">
+              <h1>web</h1>
+              <h1>uiux</h1>
+              <h1>Content</h1>
+          </div>
+              <h1 class="name">koo yeon seo</h1>
+          </div>
+        
+              <!-- <p> Quiet ideas grow through<br>
+                  detail and dedication,<br>
+                  into bold creations that connect.</p>  -->
+          <div class="slogan">
+              <p class="ideas">Ideas that flow
+              <p class="into">into inked</p>
+              <p class="cre">clarity</p>
+          </div>
+          </div>
+          <img class="scroll" src="./img/scroll.svg" alt="scroll">
+
+      </div>
+      <div class="long-wrap">
+        <!-- <div class="menu-sticy-area">
+          <button class="menu-mo" aria-label="메뉴 열기">
+              <img src="./img/Menu.svg" alt="menu">
+          </button>
+        </div> -->
+        <div class="common-frame">
+          
+          <div class="menu-overlay"></div>
+        
+          
+          <section class="about" id="about">
+              <div class="about-t">
+                <h1>about</h1>
+                <div class="t1">
+                  <p>
+                    저는 디자인의 이유를 항상 생각하는 사람입니다. <br>
+                    구조를 차근차근 정리하고 필요한 부분은 직접 구현해 오며 <br>
+                    성실하게 작업해 왔습니다. 앞으로도 사용자가 자연스럽게 <br>
+                    이해할 수 있는 흐름을 만들기 위해 꾸준히 성장하는 사람이 되겠습니다.
+                  </p>
+                  <p>웹 경험은 명확한 흐름에서 시작된다고 생각합니다. <br>
+                    사용자가 자연스럽게 이동할 수 있도록 구조를 단순하게 정리하고, <br>
+                    핵심 정보가 빠르게 보이도록 우선순위를 조정해야 한다고 생각합니다. <br>
+                  </p>
+                  <a href="./img/resume_kooyeonseo.pdf" target="_blank">Please click on my resume <img src="./img/bitcoin-icons_arrow-down-outline.svg" alt="down"></a>
+                </div>
+              </div>
+              <div class="photos">
+                <figure class="koo">
+                  <img src="./img/profile.jpg" alt="구연서 사진">
+                  <figcaption class="self">
+                  더 진한 완성도를 향해 묵묵히 나아가는<br> <span>웹 퍼블리셔, 구연서입니다.</span>
+                  </figcaption>
+                </figure>
+                <figure class="koo2">
+                  <img src="./img/IMG_2542.jpg" alt="구연서 사진2">
+                </figure>
+              </div>
+              
+          </section>
+          <section class="about2">
+            <h2>Certificates</h2>
+            <div class="all-cert">
+            <dl class="cert-list">
+              <div class="cert-item">
+                <dt class="cert-name">GTQ 1급 일러스트</dt>
+                <dd class="cert-org">한국생산성본부</dd>
+                <dd class="cert-date">2025.09.12</dd>
+              </div>
+              <div class="cert-item">
+                <dt class="cert-name">컴퓨터활용능력2급</dt>
+                <dd class="cert-org">대한상공회의소</dd>
+                <dd class="cert-date">2022.03.11</dd>
+              </div>
+              <div class="cert-item">
+                <dt class="cert-name">쇼콜라티에 2급</dt>
+                <dd class="cert-org">쇼콜라티에 코리아</dd>
+                <dd class="cert-date">2021.02.05</dd>
+              </div>    
+              <div class="cert-item">
+                <dt class="cert-name">GTQ 1급 포토샵</dt>
+                <dd class="cert-org">한국생산성본부</dd>
+                <dd class="cert-date">2021.02.07</dd>
+              </div>  
+              <div class="cert-item">
+                <dt class="cert-name">운전면허 2종 보통</dt>
+                <dd class="cert-org">경찰청</dd>
+                <dd class="cert-date">2019.01.21</dd>
+              </div> 
+            </dl>
+          </div>
+          </section>
+          <section class="skills" id="skills">
+            <h1>skills</h1>
+            <p>다양한 툴을 활용해 아이디어를 실체화하며, 디자인의 감성과 구조의 완성도를 함께 잡습니다. <br>
+              사용자의 흐름과 경험을 고려해 자연스럽게 이어지는 화면을 구현합니다.</p>
+              <!-- Swiper -->
+            <div class="swiper myswiper">
+              <div class="swiper-wrapper skill-wrap">
+                <div class="swiper-slide skill-slide">
+                  <div class="s1">
+                    <h4>01</h4>
+                    <div class="skill-box">
+                      <h2>HTML</h2>
+                      <p>
+                        HTML을 통해 웹페이지의 기본 구조를 만들 수 있습니다.
+                        콘텐츠를 논리적으로 구분하고 의미를 부여해 접근성 높은 페이지를 설계할 수 있습니다.
+                        디자인 시안을 실제 웹 화면으로 구현하는 기초가 됩니다.
+                      </p>
+                    </div>
+                    <h4>02</h4>
+                    <div class="skill-box">
+                      <h2>CSS</h2>
+                      <p>CSS를 통해 웹페이지의 시각적 스타일을 자유롭게 표현할 수 있습니다.
+                        색상, 폰트, 레이아웃을 조정해 디자인 의도를 정확히 전달할 수 있습니다.
+                        다양한 디바이스에 맞춘 반응형 웹 디자인을 구현할 수 있습니다.
+                      </p>
+                    </div>
+                    <h4>03</h4>
+                    <div class="skill-box">
+                      <h2>GitHub</h2>
+                      <p>Git과 GitHub를 통해 디자인 및 코드의 버전을 체계적으로 관리할 수 있습니다.
+                        작업 이력을 기록하고 복원하여 효율적인 협업이 가능합니다.
+                        팀 프로젝트에서 함께 작업하며 유지보수를 원활히 진행할 수 있습니다.
+                      </p>
+                    </div>                    
+                  </div>
+                </div>
+                <div class="swiper-slide skill-slide">
+                  <div class="s2">
+                    <h4>04</h4>
+                    <div class="skill-box">
+                      
+                      <h2>Illustrator</h2>
+                      <p>Illustrator를 통해 로고, 아이콘, 인포그래픽 등 다양한 벡터 디자인을 제작할 수 있습니다.
+                        정확한 도형과 선을 활용해 깔끔한 그래픽 작업이 가능합니다.
+                        브랜드 아이덴티티를 시각적으로 표현할 수 있습니다.
+                      </p> 
+                    </div>
+                    <h4>05</h4>
+                    <div class="skill-box">
+                      <h2>Photoshop</h2>
+                      <p>Photoshop을 통해 이미지를 보정하고 합성하여 시각적인 완성도를 높일 수 있습니다.
+                        배너, 썸네일, 웹 시안을 자유롭게 제작할 수 있습니다.
+                        사진과 그래픽을 조합해 감각적인 디자인을 완성할 수 있습니다.
+                      </p>
+                      
+                    </div>
+                    <h4>06</h4>
+                    <div class="skill-box">
+                      <h2>Figma</h2>
+                      <p>Figma를 통해 웹과 모바일 인터페이스를 시각적으로 설계할 수 있습니다.
+                        컴포넌트와 프로토타입 기능을 활용해 사용자 흐름을 쉽게 확인할 수 있습니다.
+                        디자이너와 개발자 간의 협업을 효율적으로 진행할 수 있습니다.
+                      </p>
+                    </div>                      
+                  </div>
+                </div>
+                <div class="swiper-slide skill-slide">
+                  <div class="s3">
+                     <h4>07</h4>
+                    <div class="skill-box">
+                      <h2>JavaScript</h2>
+                      <p>JavaScript를 통해 웹페이지에 생동감 있는 인터랙션을 추가할 수 있습니다.
+                        버튼 클릭, 스크롤, 애니메이션 등 사용자와 상호작용하는 기능을 구현할 수 있습니다.
+                        이를 통해 사용자의 경험을 더욱 풍부하게 만들 수 있습니다.
+                      </p> 
+                    </div>
+                    <!-- <h4>08</h4>
+                    <div class="skill-box">
+                      <h2>jQuery</h2>
+                      <p>jQuery를 통해 복잡한 JavaScript 기능을 간단하게 구현할 수 있습니다.
+                        DOM 조작, 애니메이션, 이벤트 제어를 손쉽게 다룰 수 있습니다.
+                        효율적으로 동적인 웹 페이지를 제작할 수 있습니다.
+                      </p>
+                    </div> -->
+                    <h4>08</h4>
+                    <div class="skill-box">
+                      <h2>React Styling</h2>
+                      <p>
+                        React를 통해 컴포넌트 단위로 디자인을 구조화할 수 있습니다.
+                        Styled-components나 CSS 모듈을 활용해 각 요소별 스타일을 효율적으로 관리할 수 있습니다.
+                        디자인 변경 시에도 유지보수가 쉬운 구조적 스타일 시스템을 만들 수 있습니다.
+                      </p>
+                    </div>                          
+                  </div>
+              </div>
+              </div>
+              <!-- <div class="swiper-button-next"></div>
+              <div class="swiper-button-prev"></div> -->
+              <div class="swiper-pagination"></div>
+            </div>
+          </section>
+          <section class="project-intro" id="project">
+            <h1>Project index</h1>
+            <ul class="project-ul">
+                <li class="project-li-last">
+                <a href="#archive">
+                <div class="project-txt">
+                  <div class="project-etc">
+                    <button type="button" class="tag-chip" id="other-tag">Creative<sup>etc</sup></button>
+                    <h3>(Creative Archive)</h3>
+                    <p>캐릭터, 일러스트, 3D작업, 초기 UI 작업 등 <br>다양한 창작물을 모아 정리한 개인 아카이브 섹션입니다.</p>
+                  </div>
+                  <ul class="project-d-ul-last">
+                    <li>Typo Graphic Style Practice</li>
+                    <li>Character Illust</li>
+                    <li>3D Works & goods</li>
+                    <li>Legacy Designs 2023~ver</li>
+                    <li>Textile Design</li>
+                  </ul>
+                </div>
+                </a>
+              </li>
+              <li class="project-li">
+                <a href="#pop-up">
+                  <button type="button" class="tag-chip">Event <sup>1</sup></button>
+                  <button type="button" class="tag-chip">Promotion <sup>1</sup></button>
+                  <div class="project-txt">
+                    <div class="p-title">
+                      <h3>pop-up designs</h3>
+                      <p>시즌 이벤트와 브랜드 메시지를 시각적으로 강하게 전달하기 위해
+                         구성한 프로모션 중심의 팝업 디자인입니다.</p>
+                    </div>
+                    <ul class="project-d-ul">
+                      <li>Nike airforce</li>
+                      <li>Blackfriday monotone</li>
+                      <li>Blackfriday 70%</li>
+                      <li>christmas event</li>
+                      <li>Blackfriday 3d</li>
+                      <li>Nike pink Sneakers</li>
+                    </ul>
+                  </div>
+                </a>
+              </li>
+              <li class="project-li">
+                <a href="#poster">
+                  <button type="button" class="tag-chip">Campaign <sup>2</sup></button>
+                  <button type="button" class="tag-chip">Illust <sup>2</sup></button>
+                  <button type="button" class="tag-chip">Launch <sup>2</sup></button>
+                  <div class="project-txt">
+                    <div class="p-title">
+                      <h3>poster designs</h3>
+                      <p>브랜드 메시지를 시각적으로 표현한 포스터 디자인입니다.
+                        타이포 구성, 컬러 밸런스, 일러스트레이션을 중심으로 제작했습니다.</p>
+                    </div>
+                    <ul class="project-d-ul">
+                      <li>Music festival</li>
+                      <li>Orange</li>
+                      <li>Save the earth1</li>
+                      <li>Save the earth2</li>
+                      <li>Matcha latte</li>
+                      <li>Donuts</li>
+                    </ul>
+                  </div>
+                </a>
+              </li>
+              <li class="project-li">
+                <a href="#banner">
+                  <button type="button" class="tag-chip">Season <sup>3</sup></button>
+                  <button type="button" class="tag-chip">Promotion <sup>3</sup></button>
+                  <div class="project-txt">
+                    <div class="p-title">
+                      <h3>banner designs</h3>
+                      <p>웹·앱 프로모션에 사용되는 배너 디자인 작업입니다. 
+                        사용자 흐름을 고려한 간결한 비주얼과 정보 구조에 집중했습니다.</p>
+                    </div>
+                    <ul class="project-d-ul">
+                      <li>Music festival</li>
+                      <li>Orange</li>
+                      <li>Save the earth1</li>
+                      <li>Save the earth2</li>
+                      <li>Matcha latte</li>
+                      <li>Donuts</li>
+                    </ul>
+                  </div>
+                </a>
+              </li>
+              <li class="project-li">
+                <a href="#details">
+                  <button type="button" class="tag-chip">Product <sup>4</sup></button>
+                  <div class="project-txt">
+                    <div class="p-title">
+                      <h3>detail page designs</h3>
+                      <p>제품의 특성과 매력을 전달하는 상세페이지 디자인입니다. 
+                        구성·서체·이미지 배치를 체계적으로 정리해 사용자 이해도를 높였습니다.</p>
+                    </div>
+                    
+                    <ul class="project-d-ul">
+                      <li>Cosmetic</li>
+                      <li>Headphone</li>
+                      <li>Furniture</li>
+                    </ul>
+                  </div>
+                </a>
+              </li>
+              <li class="project-li">
+                
+                <button type="button" class="tag-chip">Web · UI <sup>5</sup></button>
+                <div class="project-txt">
+                  <a class="project-a" href="#project-1">
+                  <div class="p-title">
+                    <h3>Web Production</h3>
+                    <p>디자인을 웹으로 구현한 프로젝트입니다. 디자인부터
+                      HTML/CSS 퍼블리싱까지 전체 웹 화면을 직접 제작했습니다.</p>
+                    </a>
+                  </div>
+                
+                  <ul class="project-d-ul">
+                    <li><a href="#project-1">Inscent</a></li>
+                    <li><a href="#project-2">Bakeup</a></li>
+                  </ul>
+                </div>
+              </li>
+            
+            
+            </ul>
+
+          </section>
+                <!-- =====================
+           ================아더아카이브 -->
+          <div class="common-frame">
+            <section class="archive" id="archive">
+            <div class="a-project-txt">
+              <div class="a-project-etc">
+                <button type="button" class="tag-chip" id="other-tag">Creative<sup>etc</sup></button>
+                <h3>(Creative Archive)</h3>
+                <p>캐릭터, 일러스트, 3D작업, 초기 UI 작업 등 <br>다양한 창작물을 모아 정리한 개인 아카이브 섹션입니다.</p>
+                <p>폴더를 클릭해주세요</p>
+              </div>
+            </div>
+            <div class="a-fold">
+              <a href="./archive0.html" target="_blank" class="folder-item">
+                <figure>
+                  <img src="./img/folder-g.svg" alt="folder-item">
+                  <figcaption>Typo Graphic Style Practice</figcaption>
+                </figure>
+              </a>
+              <a href="./archive1.html" target="_blank" class="folder-item">
+                <figure>
+                  <img src="./img/folder-g.svg" alt="folder-item">
+                  <figcaption>Character Illust</figcaption>
+                </figure>
+              </a>
+              <a href="./archive2.html" target="_blank" class="folder-item">
+                <figure>
+                  <img src="./img/folder-g.svg" alt="folder-item">
+                  <figcaption>3D Works & goods</figcaption>
+                </figure>
+              </a>
+              <a href="./archive3.html" target="_blank" class="folder-item">
+                <figure>
+                  <img src="./img/folder-b.svg" target="_blank" alt="folder-item">
+                  <figcaption>Legacy Designs 2023~ ver</figcaption>
+                </figure>
+              </a>
+              <a href="./archive4.html" class="folder-item">
+                <figure>
+                  <img src="./img/folder-g.svg" target="_blank" alt="folder-item">
+                  <figcaption>Textile Design</figcaption>
+                </figure>
+              </a>
+            </div>
+            </section>             
+          </div>
+          <!-- 팝업 -->
+          <section class="pop-up" id="pop-up">
+            <div class="pop-up__inner">
+
+              <!-- 타이틀 라인 -->
+              <button type="button" class="tag-chip">Event <sup>1</sup></button>
+              <button type="button" class="tag-chip">Promotion <sup>1</sup></button>
+              <div class="pop-up__title-area">
+                
+
+                <h2 class="pop-up__title">
+                  Pop-up<span> design</span>
+                </h2>
+
+                <p class="pop-up__desc">
+                  각 배너는 브랜드나 제품이 가진 분위기를 시각적으로 풀어내는 데 집중해 서로 다른 스타일로 구성했습니다.
+                  색감, 레이아웃, 타이포그래피를 상황에 맞게 변화시켜 각 콘셉트가 명확하게 보이도록 디자인했습니다.
+                </p>
+              </div>
+
+              <!-- 콘텐츠 슬라이더/그리드 -->
+              <div class="pop-up__body">
+
+                <!-- 모바일/탭 Swiper 컨테이너 -->
+                <div class="swiper pop-up__swiper">
+                  <ul class="swiper-wrapper pop-up__list">
+
+                    <!-- 각 아이템 -->
+                    <li class="swiper-slide pop-up__item">
+                      <article class="pop-up__card">
+                        <figure class="pop-up__thumb">
+                          <img src="./img/popup/airforce1.jpg" alt="nike airforce pop-up design">
+                          <!--  hover overlay -->
+                          <a href="#"
+                            class="pop-up__overlay"
+                            data-title="Nike Air Force 할인 프로모션 배너"
+                            data-desc="블루 라인 그래픽과 제품 실사를 조합해 스포티한 브랜드 아이덴티티를 강조한 배너입니다."
+                            data-intent="제품의 블루 포인트 컬러를 시각적 키컬러로 확장해 일관된 톤을 유지하고, 다이내믹한 라인 그래픽으로 스니커즈 특유의 에너지감을 표현했습니다. 
+                          정교한 제품 실사를 중심에 배치해 ‘상품 자체의 매력’이 드러나도록 했고, 오프라인 매장 버튼은 명확한 액션 포인트가 되도록 별도 강조했습니다."
+                            data-tags="pop-up<sup>1</sup>,design">
+                            <span>(SHOW DESIGN)</span>
+                          </a>
+                        </figure>
+                        <div class="pop-up__info">
+                          <h3 class="pop-up__name">nike airforce pop-up </h3>
+                          <p class="pop-up__sub">스우시 컬러를 키 컬러로 확장해 통일감을 주는 디자인입니다. 다이내믹한 라인 그래픽으로 에너지감을 표현했습니다.</p>
+                        </div>
+                      </article>
+                      
+                    </li>
+                    <!-- 각 아이템 -->
+                    <li class="swiper-slide pop-up__item">
+                      <article class="pop-up__card">
+                        <figure class="pop-up__thumb">
+                          <img src="./img/popup/blackfri2.jpg" alt="Black Friday Monotone Cart">
+                          <!--  hover overlay -->
+                            <a href="#"
+                              class="pop-up__overlay"
+                              data-title="BLACK FRIDAY 모노톤 콘셉트 배너"
+                              data-desc="모노톤 기반에 쇼핑카트 그래픽을 더해 세일 시즌의 직관적 이미지를 강조한 배너입니다."
+                              data-intent="블랙∙화이트 대비를 활용해 한눈에 들어오는 강렬함을 만들고, 쇼핑카트와 별 오브젝트로 블랙프라이데이의 쇼핑 분위기를 시각적으로 강화했습니다. 
+                            세리프 타이포로 프리미엄 톤을 더해 단순한 할인 정보가 아니라 브랜드 캠페인 성격의 무게감을 함께 전달했습니다."
+                            data-tags="pop-up<sup>1</sup>,design">
+                              <span>(SHOW DESIGN)</span>
+                            </a>
+                        </figure>
+                        <div class="pop-up__info">
+                          <h3 class="pop-up__name">Black Friday Monotone Cart</h3>
+                          <p class="pop-up__sub">모노톤 디자인과 쇼핑카트 그래픽으로 행사 분위기를 담았습니다. 세리프 타이포로 프리미엄한 느낌을 더했습니다.</p>
+                        </div>
+                      </article>
+                    </li>
+                    <!-- 각 아이템 -->
+                    <li class="swiper-slide pop-up__item">
+                      <article class="pop-up__card">
+                        <figure class="pop-up__thumb">
+                          <img src="./img/popup/christmas.jpg" alt="Christmas Event">
+                          <!--  hover overlay -->
+                            <a href="#"
+                               class="pop-up__overlay"
+                               data-title="크리스마스 스페셜 이벤트 배너"
+                               data-desc="연말 시즌, 한정 기간 프로모션을 강조한 크리스마스 이벤트 배너입니다."
+                               data-intent="따뜻한 퍼플 그라디언트와 귀여운 일러스트를 사용해 크리스마스의 설렘과 즐거운 분위기를 전달했습니다. 
+                        눈 내리는 듯한 파티클과 선물 박스 모티브로 혜택이 ‘열리는’ 느낌을 주고, 주요 정보는 중앙에 크게 배치해 한눈에 이벤트 내용을 인지할 수 있도록 했습니다."
+                        data-tags="pop-up<sup>1</sup>,design">
+                              <span>(SHOW DESIGN)</span>
+                            </a>
+                        </figure>
+                        <div class="pop-up__info">
+                          <h3 class="pop-up__name">Christmas Event</h3>
+                          <p class="pop-up__sub">연말 한정 프로모션을 위한 크리스마스 테마 배너입니다. 따뜻한 색감과 산타 요소로 시즌 분위기를 강조했습니다.</p>
+                        </div>
+                      </article>
+                    </li>
+                    <!-- 각 아이템 -->
+                    <li class="swiper-slide pop-up__item">
+                      <article class="pop-up__card">
+                        <figure class="pop-up__thumb">
+                          <img src="./img/popup/blackfri3.jpg" alt="Black Friday 3D Typography">
+                          <!--  hover overlay -->
+                            <a href="#"
+                              class="pop-up__overlay"
+                              data-title="BLACK FRIDAY 3D 타이포 배너"
+                              data-desc="3D 풍선 질감의 타이포로 블랙프라이데이의 팝한 분위기를 강조한 배너입니다."
+                              data-intent="검은 배경 위에 컬러풀한 3D 타이포를 더해 강한 대비감을 만들고, 쇼핑 시즌의 활기와 즐거움을 시각적으로 표현했습니다. 
+                            풍선 텍스처로 부담스럽지 않은 재미 요소를 넣어 브랜드 톤을 부드럽게 유지하며, 할인 정보를 중앙에 집중 배치해 메시지 전달력을 높였습니다."
+                            data-tags="pop-up<sup>1</sup>,design">
+                              <span>(SHOW DESIGN)</span>
+                            </a>
+                           
+                        </figure>
+                        <div class="pop-up__info">
+                          <h3 class="pop-up__name">Black Friday 3D Typography</h3>
+                          <p class="pop-up__sub">컬러풀한 3D 타이포로 블랙프라이데이의 팝한 분위기를 표현했습니다. 강한 대비로 할인 정보를 직관적으로 전달합니다.</p>
+                        </div>
+                      </article>
+                    </li>
+                    <!-- 각 아이템 -->
+                    <li class="swiper-slide pop-up__item">
+                      <article class="pop-up__card">
+                        <figure class="pop-up__thumb">
+                          <img src="./img/popup/airforce2.png" alt="Nike Pink Sneakers Promotion">
+                          <!--  hover overlay -->
+                            <a href="#"
+                              class="pop-up__overlay"
+                              data-title="Nike UP TO 50% 세일 배너"
+                              data-desc="핑크 톤을 활용해 산뜻하고 트렌디한 분위기로 구성한 나이키 오프라인 매장 프로모션 배너입니다."
+                              data-intent="신발 컬러에서 가져온 부드러운 핑크·베이지 그라디언트를 배경에 적용해 제품과 자연스럽게 연결되도록 했습니다. 
+                            타이포는 굵은 화이트 계열을 사용해 배경과의 대비를 높였고, 날짜 및 매장 정보는 하단에 정렬해 정보 구조를 명확하게 분리했습니다."
+                            data-tags="pop-up<sup>1</sup>,design">
+                              <span>(SHOW DESIGN)</span>
+                            </a>
+                        </figure>
+                        <div class="pop-up__info">
+                          <h3 class="pop-up__name">Nike Pink Sneakers</h3>
+                          <p class="pop-up__sub">제품 컬러에서 가져온 핑크 그라디언트로 조화로운 분위기를 구성했습니다. 굵은 타이포로 할인 정보와 날짜를 명확하게 전달합니다.</p>
+                        </div>
+                      </article>
+                    </li>
+                    <!-- 각 아이템 -->
+                    <li class="swiper-slide pop-up__item">
+                      <article class="pop-up__card">
+                        <figure class="pop-up__thumb">
+                          <img src="./img/popup/blackfri1.jpg" alt="Black Friday 70% OFF 3D">
+                          <!--  hover overlay -->
+                            <a href="#"
+                              class="pop-up__overlay"
+                              data-title="70% OFF 블랙프라이데이 배너"
+                              data-desc="입체적인 숫자 타이포를 중심으로 할인 폭을 직관적으로 전달한 블랙프라이데이 배너입니다."
+                              data-intent="강렬한 핑크 톤의 3D 숫자 타이포를 메인 포인트로 사용해 할인율이 가장 먼저 눈에 들어오도록 구성했습니다. 
+                            어두운 배경과 네온 느낌의 별 오브젝트로 시즌 특유의 화려함을 담았으며, 상단 리본 형태 그래픽을 통해 ‘행사 기간’ 정보를 명확하게 안내했습니다."
+                            data-tags="pop-up<sup>1</sup>,design">
+                              <span>(SHOW DESIGN)</span>
+                            </a>
+                        </figure>
+                        <div class="pop-up__info">
+                          <h3 class="pop-up__name">Black Friday 70% OFF 3D</h3>
+                          <p class="pop-up__sub">입체적인 핑크 3D 타이포로 할인율을 강하게 부각했습니다. 어두운 배경으로 행사 시즌의 화려함을 표현했습니다.</p>
+                        </div>
+                      </article>
+                    </li>
+                  </ul>
+                  <!-- 모바일용 스크롤바 or 도트 -->
+                  <div class="swiper-scrollbar pop-up__scrollbar"></div>
+                </div>
+              </div>
+
+            </div>
+          </section>
+          <!-- ===================
+          ===========포스터 -->
+          <section class="poster" id="poster">
+            <div class="pop-up__inner">
+
+              <!-- 타이틀 라인 -->
+              <button type="button" class="tag-chip">Campaign <sup>2</sup></button>
+              <button type="button" class="tag-chip">Illust <sup>2</sup></button>
+              <button type="button" class="tag-chip">Launch <sup>2</sup></button>
+
+              <div class="pop-up__title-area">
+                <h2 class="pop-up__title">
+                 poster<span>design</span>
+                </h2>
+
+                <p class="pop-up__desc">
+                  각 포스터는 주제와 매체의 특성에 맞게 색감, 타이포그래피, 레이아웃을 다르게 구성해
+                  서로 다른 무드를 보여줍니다. 메시지가 가장 잘 보이는 방식으로 그래픽과 텍스트를 조합했습니다.
+                </p>
+              </div>
+
+              <!-- 콘텐츠 슬라이더/그리드 -->
+              <div class="swiper pop-up__swiper">
+                <ul class="swiper-wrapper pop-up__list">
+
+                  <!-- 1. Save the Earth – 포스터 01 (파란 배경) -->
+                  <li class="swiper-slide pop-up__item">
+                    <article class="pop-up__card">
+                      <figure class="pop-up__thumb">
+                        <img src="./img/poster/earth2.jpg" alt="Save the Earth 포스터 1">
+                        <!--  hover overlay -->
+                        <a href="#"
+                          class="pop-up__overlay"
+                          data-title="Save the Earth poster 01"
+                          data-desc="지구를 감싸 쥔 손과 북극곰을 중심으로, ‘SAVE THE EARTH, SAVE OURSELVES’ 메시지를 담은 일러스트 포스터입니다."
+                          data-intent="짙은 블루 배경 위에 그린과 핑크를 조합해 친환경 캠페지이면서도 팝한 인상을 주도록 구성했습니다. 둥글게 부풀린 타이포그래피를 지구 형태와 연결해 메시지 자체가 그래픽 요소가 되도록 만들었고, 중앙의 북극곰을 통해 기후 위기의 상징성을 명확하게 드러냈습니다. 하단 카피는 ‘지구를 지키는 일은 곧 우리를 지키는 일’이라는 메시지를 다시 한 번 정리해줍니다."
+                          data-tags="poster<sup>2</sup>,design">
+                          <span>(SHOW DESIGN)</span>
+                        </a>
+                      </figure>
+                      <div class="pop-up__info">
+                        <h3 class="pop-up__name">Save the Earth poster 01</h3>
+                        <p class="pop-up__sub">지구와 북극곰, 손 모티브를 결합해 환경 보호 메시지를 팝한 일러스트 스타일로 표현한 포스터입니다.</p>
+                      </div>
+                    </article>
+                  </li>
+
+                  <!-- 2. Orange Sunset 포스터 (픽셀 오렌지) -->
+                  <li class="swiper-slide pop-up__item">
+                    <article class="pop-up__card">
+                      <figure class="pop-up__thumb">
+                        <img src="./img/poster/orange.jpg" alt="Orange Sunset 포스터">
+                        <!--  hover overlay -->
+                        <a href="#"
+                          class="pop-up__overlay"
+                          data-title="Orange Sunset poster"
+                          data-desc="픽셀 그래픽과 오렌지 컬러 팔레트로 레트로 게임 느낌을 살린 과일 프로모션 포스터입니다."
+                          data-intent="배경과 타이틀에 따뜻한 오렌지 톤을 사용해 맛과 향을 직관적으로 느낄 수 있도록 했고, 픽셀 형태의 오렌지 일러스트로 귀여운 레트로 감성을 더했습니다. 상단과 하단에 배치한 작은 텍스트는 제품 정보와 분위기를 보조하는 역할을 하며, 중앙의 ‘Orange / Sunset’ 타이포가 자연스럽게 시선을 위아래로 연결해 줍니다."
+                          data-tags="poster<sup>2</sup>,design">
+                          <span>(SHOW DESIGN)</span>
+                        </a>
+                      </figure>
+                      <div class="pop-up__info">
+                        <h3 class="pop-up__name">Orange Sunset poster</h3>
+                        <p class="pop-up__sub">픽셀 아트와 선명한 오렌지 컬러로 레트로한 느낌의 과일 프로모션 무드를 표현한 포스터입니다.</p>
+                      </div>
+                    </article>
+                  </li>
+
+                  <!-- 3. Matcha Latte 포스터 -->
+                  <li class="swiper-slide pop-up__item">
+                    <article class="pop-up__card">
+                      <figure class="pop-up__thumb">
+                        <img src="./img/poster/matcha.jpg" alt="Matcha Ice Cream Latte 포스터">
+                        <!--  hover overlay -->
+                        <a href="#"
+                          class="pop-up__overlay"
+                          data-title="Matcha Ice Cream Latte poster"
+                          data-desc="말차 소프트 아이스크림 라테를 주인공으로, 그린 톤과 곡선형 타이포를 활용한 카페 프로모션 포스터입니다."
+                          data-intent="잔 속 말차 아이스크림의 형태를 따라가는 곡선 그래픽과 타이포를 배경에 배치해 ‘크리미하게 흐르는’ 질감을 시각화했습니다. 전체적으로 톤 다운된 그린 팔레트를 사용해 말차 특유의 진하고 고요한 분위기를 표현했고, 크고 작은 영문 타이틀을 겹쳐 배치해 트렌디한 카페 브랜딩 느낌을 강화했습니다. 하단의 짧은 카피와 오픈 날짜 정보로 프로모션 용도도 명확히 드러냅니다."
+                          data-tags="poster<sup>2</sup>,design">
+                          <span>(SHOW DESIGN)</span>
+                        </a>
+                      </figure>
+                      <div class="pop-up__info">
+                        <h3 class="pop-up__name">Matcha Ice Cream Latte poster</h3>
+                        <p class="pop-up__sub">톤 다운된 그린과 곡선형 타이포로 말차 라테의 크리미한 질감과 분위기를 살린 카페 프로모션 포스터입니다.</p>
+                      </div>
+                    </article>
+                  </li>
+
+                  <!-- 4. Donut Worry 포스터 -->
+                  <li class="swiper-slide pop-up__item">
+                    <article class="pop-up__card">
+                      <figure class="pop-up__thumb">
+                        <img src="./img/poster/donut.jpg" alt="Donut Worry Be Happy 포스터">
+                        <!--  hover overlay -->
+                        <a href="#"
+                          class="pop-up__overlay"
+                          data-title="Donut Worry, Be Happy poster"
+                          data-desc="도넛 실사 이미지와 유머러스한 카피를 함께 사용해 즐거운 브랜딩 무드를 담은 디저트 포스터입니다."
+                          data-intent="촘촘하게 배열한 도넛 사진을 중앙에 크게 배치해 제품의 식감과 토핑을 먼저 보이게 만들고, 강한 블랙 세리프 타이포로 ‘Donut Worry, Be Happy’ 문구를 상하에 감싸듯 배치해 위트 있는 메시지를 전달합니다. 밝은 핑크 배경과 은은한 패턴으로 달콤한 분위기를 더해 디저트 브랜드의 긍정적인 이미지를 강조했습니다."
+                          data-tags="poster<sup>2</sup>,design">
+                          <span>(SHOW DESIGN)</span>
+                        </a>
+                      </figure>
+                      <div class="pop-up__info">
+                        <h3 class="pop-up__name">Donut Worry, Be Happy poster</h3>
+                        <p class="pop-up__sub">도넛 실사와 유머 있는 카피를 결합해 밝고 즐거운 브랜딩을 보여주는 디저트 포스터입니다.</p>
+                      </div>
+                    </article>
+                  </li>
+
+                  <!-- 5. Music Festival 포스터 -->
+                  <li class="swiper-slide pop-up__item">
+                    <article class="pop-up__card">
+                      <figure class="pop-up__thumb">
+                        <img src="./img/poster/music.jpg" alt="Music Festival 포스터">
+                        <!--  hover overlay -->
+                        <a href="#"
+                          class="pop-up__overlay"
+                          data-title="Music Festival poster"
+                          data-desc="도트 패턴의 사진과 굵은 타이포로 여름 음악 페스티벌의 에너지를 담은 행사 포스터입니다."
+                          data-intent="단색 블루를 기반으로 사진 전체에 하프톤 도트 효과를 적용해 레트로하면서도 힘 있는 질감을 만들었습니다. 상단에는 볼륨감 있는 라운드 타이포로 ‘Music festival’ 문구를 크게 배치해 행사명을 가장 먼저 인지하게 하고, 하단에는 일정과 장소, 장르 정보를 정돈된 그리드로 배치해 정보를 한 번에 파악할 수 있도록 설계했습니다. 전체를 하나의 컬러로 통일해 인쇄 매체에서도 임팩트 있게 보이도록 구성했습니다."
+                          data-tags="poster<sup>2</sup>,design">
+                          <span>(SHOW DESIGN)</span>
+                        </a>
+                      </figure>
+                      <div class="pop-up__info">
+                        <h3 class="pop-up__name">Music Festival poster</h3>
+                        <p class="pop-up__sub">블루 단색과 하프톤 사진, 볼륨감 있는 타이포로 여름 페스티벌의 리듬감과 에너지를 표현한 행사 포스터입니다.</p>
+                      </div>
+                    </article>
+                  </li>
+
+                  <!-- 6. Save the Earth – 포스터 02 (오렌지 배경) -->
+                  <li class="swiper-slide pop-up__item">
+                    <article class="pop-up__card">
+                      <figure class="pop-up__thumb">
+                        <img src="./img/poster/earth1.jpg" alt="Save the Earth 포스터 2">
+                        <!--  hover overlay -->
+                        <a href="#"
+                          class="pop-up__overlay"
+                          data-title="Save the Earth poster 02"
+                          data-desc="뜨거운 오렌지 배경 위에서 사람들이 지구를 붙잡고 있는 장면으로, 기후 위기의 긴박함을 표현한 환경 포스터입니다."
+                          data-intent="블루와 그린으로 표현된 지구를 중앙에 크게 두고, 사방에서 잡고 있는 손을 통해 ‘우리가 함께 붙잡아야 지킬 수 있다’는 메시지를 시각화했습니다. 강렬한 오렌지 배경은 지구 온난화의 뜨거운 온도를 상징하며, 상·하단의 ‘SAVE THE EARTH / SAVE OURSELVES’ 타이포로 카피와 이미지를 하나의 구호처럼 묶어줍니다. 하단의 짧은 문장은 메시지를 다시 한 번 직접적으로 전달해 캠페인 포스터로서의 설득력을 높였습니다."
+                          data-tags="poster<sup>2</sup>,design">
+                          <span>(SHOW DESIGN)</span>
+                        </a>
+                      </figure>
+                      <div class="pop-up__info">
+                        <h3 class="pop-up__name">Save the Earth poster 02</h3>
+                        <p class="pop-up__sub">뜨거운 오렌지 배경과 지구를 붙잡은 손 모티브로 기후 위기의 긴장감을 표현한 두 번째 환경 포스터입니다.</p>
+                      </div>
+                    </article>
+                  </li>
+                </ul>
+
+                <!-- 모바일용 스크롤바 or 도트 -->
+                <div class="swiper-scrollbar pop-up__scrollbar"></div>
+              </div>
+            </div>
+          </section>
+          <!-- =====================
+              ===============배너 -->
+          <section class="banner" id="banner">
+            <div class="pop-up__inner">
+
+              <!-- 타이틀 라인 -->
+              <button type="button" class="tag-chip">Season <sup>3</sup></button>
+              <button type="button" class="tag-chip">Promotion <sup>3</sup></button>
+
+              <div class="pop-up__title-area">
+                <h2 class="pop-up__title">
+                  banner<span>design</span>
+                </h2>
+
+                <p class="pop-up__desc">
+                  프로모션 목적과 브랜드 톤에 맞춰 가로형 배너를 제작했습니다.
+                  운동화 프로모션부터 베이커리, 블랙프라이데이 세일까지
+                  레이아웃과 타이포그래피를 다르게 구성해 다양한 무드를 보여줍니다.
+                </p>
+              </div>
+
+              <!-- 배너 전용 슬라이더 -->
+              <div class="swiper banner-swiper">
+                <ul class="swiper-wrapper pop-up__list">
+
+                  <!-- 1. NIKE Air Force – 블루 오프라인 세일 -->
+                  <li class="swiper-slide pop-up__item">
+                    <article class="pop-up__card">
+                      <figure class="pop-up__thumb">
+                        <img src="./img/banner/airforce.png" alt="Nike Air Force 오프라인 세일 배너">
+                        <!--  hover overlay -->
+                        <a href="#"
+                          class="pop-up__overlay"
+                          data-title="Nike Air Force offline sale"
+                          data-desc="기울어진 에어포스 실사 이미지와 굵은 세일 카피를 조합한 오프라인 매장 프로모션 배너입니다."
+                          data-intent="슈즈를 대각선으로 배치해 움직임과 속도감을 살리고, 배경에 넣은 ‘AIR FORCE’ 타이포로 브랜드를 반복 인지시키도록 구성했습니다. 오른쪽에는 날짜와 최대 할인율을 계층적으로 배치해, 먼저 눈에 들어오는 메인 카피와 그 아래의 상세 정보가 자연스럽게 이어지도록 설계했습니다."
+                          data-tags="banner<sup>3</sup>,design">
+                          <span>(SHOW DESIGN)</span>
+                        </a>
+                      </figure>
+                      <div class="pop-up__info">
+                        <h3 class="pop-up__name">Nike Air Force offline sale banner</h3>
+                        <p class="pop-up__sub">대각선 레이아웃과 굵은 세일 카피로 오프라인 매장 프로모션을 강조한 스니커즈 배너입니다.</p>
+                      </div>
+                    </article>
+                  </li>
+
+                  <!-- 2. NIKE Air Force – 핑크 그라데이션 세일 -->
+                  <li class="swiper-slide pop-up__item">
+                    <article class="pop-up__card">
+                      <figure class="pop-up__thumb">
+                        <img src="./img/banner/nikepink.jpg" alt="핑크 그라데이션 Nike Air Force 세일 배너">
+                        <a href="#"
+                          class="pop-up__overlay"
+                          data-title="Nike Air Force pastel sale"
+                          data-desc="핑크–퍼플 그라데이션 위에 에어포스 실사를 올리고, ‘UP TO 50%’ 타이포를 키워 세일 무드를 강조한 배너입니다."
+                          data-intent="부드러운 그라데이션 배경과 파스텔 톤 슈즈 컬러를 맞추어 통일감을 주고, 얇은 외곽선 처리된 ‘UP TO’와 굵은 ‘50%’ 대비로 세일 정보의 위계를 잡았습니다. 하단에는 버튼형 요소를 넣어 오프라인 매장 안내까지 이어지도록 구성해 랜딩 유도에 적합한 구조입니다."
+                          data-tags="banner<sup>3</sup>,design">
+                          <span>(SHOW DESIGN)</span>
+                        </a>
+                      </figure>
+                      <div class="pop-up__info">
+                        <h3 class="pop-up__name">Nike Air Force pastel sale banner</h3>
+                        <p class="pop-up__sub">파스텔 그라데이션과 볼드한 타이포 대비로 밝고 트렌디한 세일 분위기를 만든 운동화 배너입니다.</p>
+                      </div>
+                    </article>
+                  </li>
+
+                  <!-- 3. Butter – 프랑스 버터 소개 -->
+                  <li class="swiper-slide pop-up__item">
+                    <article class="pop-up__card">
+                      <figure class="pop-up__thumb">
+                        <img src="./img/banner/butter.jpg" alt="French butter 제품 소개 배너">
+                        <a href="#"
+                          class="pop-up__overlay"
+                          data-title="French butter premium banner"
+                          data-desc="‘The secret? Our butter!’ 카피와 버터 블록 이미지를 중심으로 재료의 퀄리티를 강조한 브랜드 배너입니다."
+                          data-intent="종이 질감이 느껴지는 크림 톤 배경 위에 선명한 블루 세리프 타이포를 크게 배치해 고급스럽고 클래식한 분위기를 만들었습니다. 좌우에 배치한 버터 실사 이미지는 제품의 촉감과 풍미를 직관적으로 전달하며, 본문 카피는 베이커리의 품질 차별점을 짧게 정리해줍니다."
+                          data-tags="banner<sup>3</sup>,design">
+                          <span>(SHOW DESIGN)</span>
+                        </a>
+                      </figure>
+                      <div class="pop-up__info">
+                        <h3 class="pop-up__name">French butter premium banner</h3>
+                        <p class="pop-up__sub">클래식한 세리프 타이포와 실사 이미지를 결합해 재료의 프리미엄 이미지를 강조한 버터 소개 배너입니다.</p>
+                      </div>
+                    </article>
+                  </li>
+
+                  <!-- 4. Chocolate bread – 초코 시리즈 프로모션 -->
+                  <li class="swiper-slide pop-up__item">
+                    <article class="pop-up__card">
+                      <figure class="pop-up__thumb">
+                        <img src="./img/banner/chocolate.jpg" alt="초콜릿 빵 시리즈 프로모션 배너">
+                        <a href="#"
+                          class="pop-up__overlay"
+                          data-title="Chocolate bread series"
+                          data-desc="다양한 초콜릿 빵을 한쪽에 모아 배치하고, 중앙에 타이틀과 버튼을 넣어 시리즈 메뉴로 연결되는 배너입니다."
+                          data-intent="넓은 여백과 라운드 타이포, 손글씨 느낌의 포인트 텍스트를 사용해 캐주얼하고 친근한 베이커리 무드를 만들었습니다. 오른쪽에 실사 빵 이미지를 크게 배치해 식감을 돋보이게 하고, 왼쪽의 타이틀과 ‘go menu’ 버튼으로 메뉴 페이지로 자연스럽게 이어지도록 구성했습니다."
+                          data-tags="banner<sup>3</sup>,design">
+                          <span>(SHOW DESIGN)</span>
+                        </a>
+                      </figure>
+                      <div class="pop-up__info">
+                        <h3 class="pop-up__name">Chocolate bread series banner</h3>
+                        <p class="pop-up__sub">여백이 넓은 레이아웃과 라운드 타이포로 부드러운 초코 빵 시리즈를 소개하는 프로모션 배너입니다.</p>
+                      </div>
+                    </article>
+                  </li>
+
+                  <!-- 5. Dirty choco cake – 케이크 프로모션 -->
+                  <li class="swiper-slide pop-up__item">
+                    <article class="pop-up__card">
+                      <figure class="pop-up__thumb">
+                        <img src="./img/banner/dirtychoco.jpg" alt="더티 초코 케이크 프로모션 배너">
+                        <a href="#"
+                          class="pop-up__overlay"
+                          data-title="Dirty choco cake promotion"
+                          data-desc="더티 초코 케이크 실사와 와이드한 세리프 타이포를 결합해 진한 초콜릿의 느낌을 강조한 배너입니다."
+                          data-intent="종이 질감이 느껴지는 화이트 배경에 다크 레드 타이포를 크게 겹쳐 배치해, 케이크의 진한 맛과 클래식한 무드를 동시에 전달합니다. 중앙에 위치한 케이크 실사 이미지는 그림자와 접시 디테일까지 살려 입체감 있게 표현했고, 오른쪽의 심플한 화살표 아이콘으로 디테일 페이지 이동을 유도했습니다."
+                          data-tags="banner<sup>3</sup>,design">
+                          <span>(SHOW DESIGN)</span>
+                        </a>
+                      </figure>
+                      <div class="pop-up__info">
+                        <h3 class="pop-up__name">Dirty choco cake banner</h3>
+                        <p class="pop-up__sub">다크 레드 타이포와 케이크 실사로 진한 초콜릿 무드를 강조한 디저트 프로모션 배너입니다.</p>
+                      </div>
+                    </article>
+                  </li>
+
+                  <!-- 6. Black Friday – 카트/쇼핑백 콘셉트 -->
+                  <li class="swiper-slide pop-up__item">
+                    <article class="pop-up__card">
+                      <figure class="pop-up__thumb">
+                        <img src="./img/banner/balckfricart.jpg" alt="쇼핑백 콘셉트 블랙프라이데이 배너">
+                        <a href="#"
+                          class="pop-up__overlay"
+                          data-title="Black Friday shopping bag"
+                          data-desc="쇼핑백 아이콘을 중앙에 두고 좌우에 ‘BLACK / FRIDAY’를 배치해 온라인 스토어 세일을 강조한 배너입니다."
+                          data-intent="딥 블랙 배경 위에 노이즈 텍스처가 들어간 화이트 타이포와 쇼핑백 그래픽을 사용해 심플하지만 인상적인 구성을 만들었습니다. 위아래의 작은 카피와 날짜 정보로 이벤트 기간을 명확히 전달하고, 중앙 쇼핑백 아이콘으로 ‘쇼핑’이라는 행동을 직관적으로 연상시키도록 디자인했습니다."
+                          data-tags="banner<sup>3</sup>,design">
+                          <span>(SHOW DESIGN)</span>
+                        </a>
+                      </figure>
+                      <div class="pop-up__info">
+                        <h3 class="pop-up__name">Black Friday shopping bag banner</h3>
+                        <p class="pop-up__sub">쇼핑백 아이콘과 미니멀한 타이포로 온라인 스토어 세일을 강조한 블랙프라이데이 배너입니다.</p>
+                      </div>
+                    </article>
+                  </li>
+
+                  <!-- 7. Black Friday – 오렌지 풀배경 타입 -->
+                  <li class="swiper-slide pop-up__item">
+                    <article class="pop-up__card">
+                      <figure class="pop-up__thumb">
+                        <img src="./img/banner/balckfri70.jpg" alt="오렌지 배경 Black Friday UP TO 70% 배너">
+                        <a href="#"
+                          class="pop-up__overlay"
+                          data-title="Black Friday orange type"
+                          data-desc="강렬한 오렌지 배경 위에 ‘BLACK FRIDAY’ 타이포를 꽉 채워 넣고 UP TO 70% 카피를 더한 배너입니다."
+                          data-intent="화면 전체를 채우는 레드-오렌지 컬러와 굵은 세리프 타이포로 한눈에 들어오는 세일 분위기를 만들었습니다. 상단에는 일정과 ‘지금부터 한 달 동안’ 등의 정보를 짧게 배치해 긴 이벤트 기간을 강조하고, 하단의 ‘UP TO 70%’ 카피로 구체적인 혜택을 전달합니다."
+                          data-tags="banner<sup>3</sup>,design">
+                          <span>(SHOW DESIGN)</span>
+                        </a>
+                      </figure>
+                      <div class="pop-up__info">
+                        <h3 class="pop-up__name">Black Friday orange type banner</h3>
+                        <p class="pop-up__sub">강렬한 오렌지 톤과 풀사이즈 타이포로 시선을 사로잡는 블랙프라이데이 메인 배너입니다.</p>
+                      </div>
+                    </article>
+                  </li>
+
+                  <!-- 8. Black Friday – 3D SALE 88% -->
+                  <li class="swiper-slide pop-up__item">
+                    <article class="pop-up__card">
+                      <figure class="pop-up__thumb">
+                        <img src="./img/banner/balckfri88.jpg" alt="3D SALE 88% 블랙프라이데이 배너">
+                        <a href="#"
+                          class="pop-up__overlay"
+                          data-title="Black Friday 3D sale"
+                          data-desc="입체감 있는 3D ‘SALE ~88%’ 타이포를 중앙에 크게 배치해 세일 폭을 직관적으로 보여주는 배너입니다."
+                          data-intent="딥 블랙 배경에서 튀어나오는 듯한 오렌지 3D 타이포로 강한 대비를 주고, 위아래에 ‘BLACK FRIDAY’와 날짜 정보를 정갈하게 배치해 이벤트의 성격과 기간을 바로 인식할 수 있게 했습니다. 노이즈가 섞인 질감으로 디지털 포스터 같은 느낌을 더했습니다."
+                          data-tags="banner<sup>3</sup>,design">
+                          <span>(SHOW DESIGN)</span>
+                        </a>
+                      </figure>
+                      <div class="pop-up__info">
+                        <h3 class="pop-up__name">Black Friday 3D sale banner</h3>
+                        <p class="pop-up__sub">3D 볼륨 타이포로 최대 할인율을 강하게 강조한 블랙프라이데이 세일 배너입니다.</p>
+                      </div>
+                    </article>
+                  </li>
+
+                  <!-- 9. Black Friday – 심플 타이포 버전 -->
+                  <li class="swiper-slide pop-up__item">
+                    <article class="pop-up__card">
+                      <figure class="pop-up__thumb">
+                        <img src="./img/banner/balckfri.jpg" alt="심플 타이포 블랙프라이데이 배너">
+                        <a href="#"
+                          class="pop-up__overlay"
+                          data-title="Black Friday minimal type"
+                          data-desc="블랙 배경 위에 ‘BLACK FRIDAY’와 ‘SALE ~88%’를 좌우로 분리해 배치한 심플한 타이포 중심 배너입니다."
+                          data-intent="화면을 반으로 나누듯 왼쪽에는 화이트 타이포로 ‘BLACK FRIDAY’를, 오른쪽에는 레드 톤의 ‘SALE ~88%’를 크게 배치해 정보가 자연스럽게 대비되도록 구성했습니다. 가운데 작은 아이콘과 하단 날짜 정보가 전체 레이아웃을 균형 있게 잡아주며, 여백을 많이 남겨 고급스러운 온라인 프로모션 느낌을 줍니다."
+                          data-tags="banner<sup>3</sup>,design">
+                          <span>(SHOW DESIGN)</span>
+                        </a>
+                      </figure>
+                      <div class="pop-up__info">
+                        <h3 class="pop-up__name">Black Friday minimal type banner</h3>
+                        <p class="pop-up__sub">좌우로 나뉜 타이포 대비와 넉넉한 여백으로 세련된 무드를 살린 블랙프라이데이 배너입니다.</p>
+                      </div>
+                    </article>
+                  </li>
+
+                </ul>
+
+                <!-- 도트/스크롤바는 스타일에 맞게 사용 -->
+                <!-- <div class="swiper-pagination banner-swiper-pagination"></div> -->
+                
+                <div class="swiper-scrollbar banner-swiper-scrollbar"></div>
+                
+              </div>
+            </div>
+
+          </section>
+                    <!-- ===================
+          ===========상세페이지 -->
+          <section class="details" id="details">
+            <div class="pop-up__inner">
+
+              <!-- 타이틀 라인 -->
+              <button type="button" class="tag-chip">Product <sup>4</sup></button>
+
+              <div class="pop-up__title-area">
+                <h2 class="pop-up__title">
+                 detail page<span>design</span>
+                </h2>
+
+                <p class="pop-up__desc">
+                  각 포스터는 주제와 매체의 특성에 맞게 색감, 타이포그래피, 레이아웃을 다르게 구성해
+                  서로 다른 무드를 보여줍니다. 메시지가 가장 잘 보이는 방식으로 그래픽과 텍스트를 조합했습니다.
+                </p>
+              </div>
+
+              <!-- 콘텐츠 슬라이더/그리드 -->
+              <div class="swiper detail-swiper">
+                <ul class="swiper-wrapper pop-up__list">
+
+                    <!-- 1. Lunaris H1 헤드셋 상세페이지 -->
+                    <li class="swiper-slide pop-up__item">
+                      <article class="pop-up__card">
+                        <figure class="pop-up__thumb">
+                          <img src="./img/detail/Artboard 1.jpg" alt="Lunaris H1 헤드셋 상세페이지">
+                          <!--  hover overlay -->
+                          <a href="#"
+                            class="pop-up__overlay"
+                            data-title="Lunaris H1 Headphone Detail"
+                            data-desc="하이라이트 기능을 섹션별로 정리한 무선 헤드셋 온라인 상세 페이지입니다."
+                            data-intent="크림 톤 배경과 부드러운 그림자를 사용해 무선 헤드셋의 편안하고 세련된 이미지를 강조했습니다. 상단에서는 제품 실루엣과 네이밍을 크게 배치해 브랜드를 먼저 인지시키고, 중간 영역에서는 Hi-Fi 사운드, 노이즈 캔슬링, 착용감, 듀얼 모드, 배터리 등 핵심 기능을 섹션 단위로 분리해 한눈에 이해할 수 있도록 구성했습니다. 라이프스타일 인물 사진과 내부 구조 분해 이미지를 교차로 사용해 ‘기술 설명 → 실제 사용 장면’의 흐름을 만들었고, 마지막에는 컬러 옵션을 아이콘처럼 나열해 사용자가 원하는 색상을 바로 비교·선택할 수 있게 디자인했습니다."
+                            data-tags="detail page<sup>3</sup>,design">
+                            <span>(SHOW DESIGN)</span>
+                          </a>
+                        </figure>
+                        <div class="pop-up__info">
+                          <h3 class="pop-up__name">Lunaris H1 Headphone Detail</h3>
+                          <p class="pop-up__sub">
+                            크림 톤과 라이프스타일 이미지를 활용해 사운드, 노이즈 캔슬링, 착용감, 배터리 정보를
+                            단계적으로 보여주는 헤드셋 상세 페이지입니다.
+                          </p>
+                        </div>
+                      </article>
+                    </li>
+                  
+                    <!-- 2. Comfort Chair 80 상세페이지 -->
+                    <li class="swiper-slide pop-up__item">
+                      <article class="pop-up__card">
+                        <figure class="pop-up__thumb">
+                          <img src="./img/detail/chair.jpg" alt="Comfort Chair 80 상세페이지">
+                          <!--  hover overlay -->
+                          <a href="#"
+                            class="pop-up__overlay"
+                            data-title="Comfort Chair 80 Detail"
+                            data-desc="사용 이유와 구조를 중심으로 편안함을 설명하는 오피스 체어 상세 페이지입니다."
+                            data-intent="따뜻한 베이지와 라이트 그레이 톤을 사용해 집과 사무실 어디에 두어도 어울리는 편안한 분위기를 만들었습니다. 상단의 인테리어 컷과 함께 ‘WHY?’ 섹션을 두어 이 의자를 선택해야 하는 이유를 아이콘과 짧은 카피로 먼저 요약하고, 그 아래에서는 등받이 곡률, 헤드레스트, 팔걸이, 패브릭 텍스처 등 디테일을 클로즈업 이미지로 분리해 보여줍니다. 컬러 정보와 사이즈 도면, 제품 스펙, 배송·AS 아이콘을 한 페이지 안에 정리해 사용자가 구매 전 필요한 정보를 스크롤 한 번으로 모두 확인할 수 있도록 구성한 상세 페이지입니다."
+                            data-tags="detail page<sup>3</sup>,design">
+                            <span>(SHOW DESIGN)</span>
+                          </a>
+                        </figure>
+                        <div class="pop-up__info">
+                          <h3 class="pop-up__name">Comfort Chair 80 Detail</h3>
+                          <p class="pop-up__sub">
+                            WHY 섹션, 디테일 클로즈업, 컬러·사이즈·구매 정보를 한 흐름으로 묶어
+                            편안한 체어의 기능과 감성을 함께 전달하는 상세 페이지입니다.
+                          </p>
+                        </div>
+                      </article>
+                    </li>
+                  
+                    <!-- 3. Onyu Clear Lotion 상세페이지 -->
+                    <li class="swiper-slide pop-up__item">
+                      <article class="pop-up__card">
+                        <figure class="pop-up__thumb">
+                          <img src="./img/detail/lotion.jpg" alt="Onyu Clear Lotion 상세페이지">
+                          <!--  hover overlay -->
+                          <a href="#"
+                            class="pop-up__overlay"
+                            data-title="Onyu Clear Lotion Detail"
+                            data-desc="화이트 & 블루 톤으로 투명함과 진정감을 강조한 스킨케어 상세 페이지입니다."
+                            data-intent="화이트 베이스에 시원한 블루 포인트 컬러를 더해 ‘맑고 투명한 피부’라는 제품 컨셉을 시각적으로 표현했습니다. 상단에서는 제품 튜브와 눈꽃 텍스처를 사용해 첫인상을 잡고, 바로 아래에는 피부 테스트 수치와 키포인트 아이콘을 배치해 신뢰감을 먼저 전달합니다. 성분 섹션에서는 원료 이미지를 카드 형식으로 정리해 어떤 효능을 기대할 수 있는지 쉽게 읽히도록 구성했고, 사용 방법은 모델 컷과 함께 스텝별로 정리해 루틴 속 사용 장면을 떠올리게 했습니다. 마지막 제품 컷에는 장점 키워드를 원형으로 둘러 배치해 한 번 더 핵심 메시지를 요약해 주는 구조의 코스메틱 상세 페이지입니다."
+                            data-tags="detail page<sup>3</sup>,design">
+                            <span>(SHOW DESIGN)</span>
+                          </a>
+                        </figure>
+                        <div class="pop-up__info">
+                          <h3 class="pop-up__name">Onyu Clear Lotion Detail</h3>
+                          <p class="pop-up__sub">
+                            테스트 수치, 성분, 사용법, 텍스처를 단계적으로 보여 주며
+                            투명하고 촉촉한 피부 이미지를 강조한 코스메틱 상세 페이지입니다.
+                          </p>
+                        </div>
+                      </article>
+                    </li>
+                    <!-- 1. Lunaris H1 헤드셋 상세페이지 -->
+                    <li class="swiper-slide pop-up__item">
+                      <article class="pop-up__card">
+                        <figure class="pop-up__thumb">
+                          <img src="./img/detail/Artboard 1.jpg" alt="Lunaris H1 헤드셋 상세페이지">
+                          <!--  hover overlay -->
+                          <a href="#"
+                            class="pop-up__overlay"
+                            data-title="Lunaris H1 Headphone Detail"
+                            data-desc="하이라이트 기능을 섹션별로 정리한 무선 헤드셋 온라인 상세 페이지입니다."
+                            data-intent="크림 톤 배경과 부드러운 그림자를 사용해 무선 헤드셋의 편안하고 세련된 이미지를 강조했습니다. 상단에서는 제품 실루엣과 네이밍을 크게 배치해 브랜드를 먼저 인지시키고, 중간 영역에서는 Hi-Fi 사운드, 노이즈 캔슬링, 착용감, 듀얼 모드, 배터리 등 핵심 기능을 섹션 단위로 분리해 한눈에 이해할 수 있도록 구성했습니다. 라이프스타일 인물 사진과 내부 구조 분해 이미지를 교차로 사용해 ‘기술 설명 → 실제 사용 장면’의 흐름을 만들었고, 마지막에는 컬러 옵션을 아이콘처럼 나열해 사용자가 원하는 색상을 바로 비교·선택할 수 있게 디자인했습니다."
+                            data-tags="detail page<sup>3</sup>,design">
+                            <span>(SHOW DESIGN)</span>
+                          </a>
+                        </figure>
+                        <div class="pop-up__info">
+                          <h3 class="pop-up__name">Lunaris H1 Headphone Detail</h3>
+                          <p class="pop-up__sub">
+                            크림 톤과 라이프스타일 이미지를 활용해 사운드, 노이즈 캔슬링, 착용감, 배터리 정보를
+                            단계적으로 보여주는 헤드셋 상세 페이지입니다.
+                          </p>
+                        </div>
+                      </article>
+                    </li>
+                  
+                    <!-- 2. Comfort Chair 80 상세페이지 -->
+                    <li class="swiper-slide pop-up__item">
+                      <article class="pop-up__card">
+                        <figure class="pop-up__thumb">
+                          <img src="./img/detail/chair.jpg" alt="Comfort Chair 80 상세페이지">
+                          <!--  hover overlay -->
+                          <a href="#"
+                            class="pop-up__overlay"
+                            data-title="Comfort Chair 80 Detail"
+                            data-desc="사용 이유와 구조를 중심으로 편안함을 설명하는 오피스 체어 상세 페이지입니다."
+                            data-intent="따뜻한 베이지와 라이트 그레이 톤을 사용해 집과 사무실 어디에 두어도 어울리는 편안한 분위기를 만들었습니다. 상단의 인테리어 컷과 함께 ‘WHY?’ 섹션을 두어 이 의자를 선택해야 하는 이유를 아이콘과 짧은 카피로 먼저 요약하고, 그 아래에서는 등받이 곡률, 헤드레스트, 팔걸이, 패브릭 텍스처 등 디테일을 클로즈업 이미지로 분리해 보여줍니다. 컬러 정보와 사이즈 도면, 제품 스펙, 배송·AS 아이콘을 한 페이지 안에 정리해 사용자가 구매 전 필요한 정보를 스크롤 한 번으로 모두 확인할 수 있도록 구성한 상세 페이지입니다."
+                            data-tags="detail page<sup>3</sup>,design">
+                            <span>(SHOW DESIGN)</span>
+                          </a>
+                        </figure>
+                        <div class="pop-up__info">
+                          <h3 class="pop-up__name">Comfort Chair 80 Detail</h3>
+                          <p class="pop-up__sub">
+                            WHY 섹션, 디테일 클로즈업, 컬러·사이즈·구매 정보를 한 흐름으로 묶어
+                            편안한 체어의 기능과 감성을 함께 전달하는 상세 페이지입니다.
+                          </p>
+                        </div>
+                      </article>
+                    </li>
+                  
+                    <!-- 3. Onyu Clear Lotion 상세페이지 -->
+                    <li class="swiper-slide pop-up__item">
+                      <article class="pop-up__card">
+                        <figure class="pop-up__thumb">
+                          <img src="./img/detail/lotion.jpg" alt="Onyu Clear Lotion 상세페이지">
+                          <!--  hover overlay -->
+                          <a href="#"
+                            class="pop-up__overlay"
+                            data-title="Onyu Clear Lotion Detail"
+                            data-desc="화이트 & 블루 톤으로 투명함과 진정감을 강조한 스킨케어 상세 페이지입니다."
+                            data-intent="화이트 베이스에 시원한 블루 포인트 컬러를 더해 ‘맑고 투명한 피부’라는 제품 컨셉을 시각적으로 표현했습니다. 상단에서는 제품 튜브와 눈꽃 텍스처를 사용해 첫인상을 잡고, 바로 아래에는 피부 테스트 수치와 키포인트 아이콘을 배치해 신뢰감을 먼저 전달합니다. 성분 섹션에서는 원료 이미지를 카드 형식으로 정리해 어떤 효능을 기대할 수 있는지 쉽게 읽히도록 구성했고, 사용 방법은 모델 컷과 함께 스텝별로 정리해 루틴 속 사용 장면을 떠올리게 했습니다. 마지막 제품 컷에는 장점 키워드를 원형으로 둘러 배치해 한 번 더 핵심 메시지를 요약해 주는 구조의 코스메틱 상세 페이지입니다."
+                            data-tags="detail page<sup>3</sup>,design">
+                            <span>(SHOW DESIGN)</span>
+                          </a>
+                        </figure>
+                        <div class="pop-up__info">
+                          <h3 class="pop-up__name">Onyu Clear Lotion Detail</h3>
+                          <p class="pop-up__sub">
+                            테스트 수치, 성분, 사용법, 텍스처를 단계적으로 보여 주며
+                            투명하고 촉촉한 피부 이미지를 강조한 코스메틱 상세 페이지입니다.
+                          </p>
+                        </div>
+                      </article>
+                    </li>
+                </ul>
+
+
+                <!-- 모바일용 스크롤바 or 도트 -->
+                <div class="swiper-scrollbar detail__scrollbar"></div>
+              </div>
+            </div>
+          </section>
+      </div>
+      <!--=======================
+      ===================== 프로젝트 -->
+      <section class="project-frame" id="project-1">
+        <!-- <div class="project-box"> -->
+          <!-- <img class="slogan-pp" src="./img/slogan-w.svg" alt=""> -->
+          <div class="project-tt">
+            <button type="button" class="tag-chip">Web · UI <sup>5</sup></button>
+            <h3>Web <span>Production 1</span></h3>
+          </div>
+           <img class="arrow" src="./img/Union.svg" alt="화살표">      
+           <ul class="project-sticky-menu">
+             <li class="link-item">
+               <a href="https://inscentt.dothome.co.kr" target="_blank">
+                 View Branding Website
+                 <span class="arrow-icon">↗</span>
+               </a>
+             </li>
+             <li class="link-item">
+               <a href="https://www.figma.com/proto/nFbbPM1Wg0njhuL3BNrKDI/%E1%84%8B%E1%85%B5%E1%86%AB%E1%84%89%E1%85%A6%E1%86%AB%E1%84%90%E1%85%B3-InScent-Portfolio?node-id=0-1&t=PF35Okd1YmMHMDGh-1" target="_blank">
+                 View Figma Prototype
+                 <span class="arrow-icon">↗</span>
+               </a>
+             </li>          
+           </ul>  
+            <div class="project-bar">
+              <ul class="bar-list">
+                <li><span>UI/UX Design & Web Publishing</span></li>
+                <li><span>2025.11</span></li>
+                <li><span>Team Project</span></li>
+                 <li><a href="https://www.notion.so/2025-Project-235110b2e71a805981b7d92d2ad6677e?source=copy_link">Notion Process <span class="arrow-icon">↗</span></a></li>
+                <li><a href="tel:+821073136535">+82 10 7313 6535 <span class="arrow-icon">↗</span></a></li>
+                <li><a href="mailto:ninewrks@gmail.com">ninewrks@gmail.com <span class="arrow-icon">↗</span></a></li>
+              </ul>
+            </div>
+          <figure class="project-img">
+            <!-- 상세이미지 -->
+            <picture>
+              <source media="(max-width: 768px)" srcset="./img/project-d1-mo.jpg">
+              <img src="./img/project-d1.jpg" alt="프로젝트 상세이미지">
+            </picture>
+            </figure>
+      </section>
+      <section class="project-frame" id="project-2">
+        <!-- <div class="project-box"> -->
+          <!-- <img class="slogan-pp" src="./img/slogan-w.svg" alt=""> -->
+          <div class="project-tt">
+            <button type="button" class="tag-chip">Web · UI <sup>5</sup></button>
+            <h3>Web <span>Production 2</span></h3>
+          </div>
+           <img class="arrow" src="./img/Union.svg" alt="화살표">      
+           <ul class="project-sticky-menu">
+             <li class="link-item">
+               <a href="https://bakeup.dothome.co.kr" target="_blank">
+                 View Branding Website
+                 <span class="arrow-icon">↗</span>
+               </a>
+             </li>
+             <li class="link-item">
+               <a href="https://www.figma.com/proto/c1qKzlFD78dWwkFKSuJrac/%EB%B2%A0%EC%9D%B4%ED%81%AC%EC%97%85?node-id=0-1&t=i8FsskF2BtJRZKWj-1" target="_blank">
+                 View Figma Prototype
+                 <span class="arrow-icon">↗</span>
+               </a>
+             </li>          
+           </ul>  
+        
+            
+            <div class="project-bar">
+              <ul class="bar-list">
+                <li><span>UI/UX Design & Web Publishing</span></li>
+                <li><span>2025.11</span></li>
+                <li><span>Personal Project</span></li>
+                <li><a href="https://www.notion.so/2025-Project-235110b2e71a805981b7d92d2ad6677e?source=copy_link">Notion Process <span class="arrow-icon">↗</span></a></li>
+                <li><a href="tel:+821073136535">+82 10 7313 6535 <span class="arrow-icon">↗</span></a></li>
+                <li><a href="mailto:ninewrks@gmail.com">ninewrks@gmail.com <span class="arrow-icon">↗</span></a></li>
+              </ul>
+            </div>
+          <figure class="project-img">
+            <!-- 상세이미지 -->
+            <picture>
+              <source media="(max-width: 768px)" srcset="./img/project-d2-mo.jpg">
+              <img src="./img/project-d2.jpg" alt="프로젝트 상세이미지">
+            </picture>
+            </figure>
+      </section>      
+         
+
+  
+      </div>
+        <!-- 디자인 상세 모달 -->
+<div class="design-modal" id="designModal" aria-hidden="true">
+  <div class="design-modal__overlay"></div>
+  <div class="design-modal__content">
+    <button class="design-modal__close" aria-label="닫기">✕</button>
+      <div class="modal__box">
+        <figure class="design-modal__figure">
+        <img src="" alt="" id="designModalImg">
+      </figure>
+
+      <div class="design-modal__text">
+      <div class="design-modal__tags" id="designModalTags"></div> 
+        <h1>Project info </h1>
+        <h3 id="designModalTitle">Title</h3>
+        <!-- 서브 설명(간단 설명/카피 문구) -->
+        <p id="designModalDesc" class="design-modal__desc">Description</p>
+
+        <!--  디자인 의도 영역 -->
+        <h4 class="design-modal__subtitle">Design Intent</h4>
+        <p id="designModalIntent" class="design-modal__intent">
+          의도 설명이 들어가는 영역입니다.
+        </p>
+      </div>
+    </div>
+    
+  </div>
+</div>
+      
+  </main>
+  <section class="footer" id="outro">
+    <div class="end-banner">
+      <div class="end-track">
+        <span>Thank you for reaching the end — may the next page be even clearer.</span>
+        <span>Thank you for reaching the end — may the next page be even clearer.</span>
+        <span>Thank you for reaching the end — may the next page be even clearer.</span>
+      </div>
+    </div>
+
+    <div class="back">
+      <div class="last-job">
+        <span>Web</span><span><img src="./img/ss2.svg" alt="*"></span><span>Uiux</span><span><img src="./img/ss2.svg" alt="*"></span><span>Publisher</span><span><img src="./img/ss2.svg" alt="*"></span><span>Design</span>
+      </div>
+      <img class="b-logo" src="./img/slogan-w.svg" alt="로고">
+      <p>Thank you for your time and attention. <br> I look forward to designing meaningful experiences ahead.</p>
+      <p>끝까지 봐주셔서 감사합니다. <br> 다음 페이지는 더 선명하게 채워가겠습니다.</p>
+        <ul class="f-contect">
+          <li><a href="tel:+821073136535">+82 10 7313 6535 <span class="arrow-icon">↗</span></a></li>
+          <li><a href="https://www.notion.so/2025-Project-235110b2e71a805981b7d92d2ad6677e?source=copy_link" target="_blank">Notion Study + Process <span class="arrow-icon">↗</span></a></li>
+          <li><a href="mailto:ninewrks@gmail.com">ninewrks@gmail.com <span class="arrow-icon">↗</span></a></li>
+        </ul>
+    </div>
+  </section>
+ 
+
+
+  <!-- 외부 자바스크립트 연결 -->
+  <script src="./js/loading.js" defer></script>
+  
+    <!-- Swiper JS -->
+<script src="https://cdn.jsdelivr.net/npm/swiper@12/swiper-bundle.min.js"></script>
+
+  <!-- Initialize Swiper -->
+  <script>
+  // skills용
+  var skillsSwiper = new Swiper(".myswiper", {
+    slidesPerView: 3,
+    spaceBetween: 20,
+    breakpoints: {
+      1600: { slidesPerView: 3, spaceBetween: 20 },
+      1024: { slidesPerView: 3, spaceBetween: 20 },
+      500:  { slidesPerView: 2, spaceBetween: 16 },
+      0:    { slidesPerView: 1, spaceBetween: 12 },
+    },
+    pagination: {
+      el: ".swiper-pagination",
+      clickable: true,
+    },
+  });
+
+  // pop-up 섹션용
+  var popupSwiper = new Swiper(".pop-up__swiper", {
+     loop: true,     
+     autoplay: {
+  delay: 4000,    // 4초 후 다음 슬라이드 (적당히 천천히)
+  disableOnInteraction: false, // 유저가 터치해도 autoplay 유지
+},
+speed: 900,        // 슬라이드 넘어가는 애니메이션 속도 (1초 정도)
+    // slidesPerView: 4,
+    // spaceBetween: 140,
+    //  pagination 말고 scrollbar
+    scrollbar: {
+      el: ".pop-up__scrollbar", // 이 섹션 안에 있는 스크롤바만 사용
+      draggable: true,          // 드래그 가능
+      hide: false,              
+    },
+    // 필요하면 반응형도 추가 가능
+    breakpoints: {
+      0:    { slidesPerView: 1.1, spaceBetween: 14 },
+      500:  { slidesPerView: 2.1, spaceBetween: 60 },
+      1024: { slidesPerView: 3.5, spaceBetween: 70 },
+      1600: { slidesPerView: 4.5, spaceBetween: 130 },
+    },
+  });
+</script>
+<script>
+  const bannerSwiper = new Swiper('.banner-swiper', {
+    // 기본값: 모바일/태블릿은 1장
+    slidesPerView: 1,
+    loop: true,
+    speed: 800,
+    spaceBetween: 0,
+    autoplay: {
+      // delay: 4000,
+      disableOnInteraction: false,
+    },
+    scrollbar: {
+      el: '.banner-swiper-scrollbar',
+      draggable: true,
+    },
+
+    // 화면 너비에 따른 변경
+    breakpoints: {
+      // 1600px 이상부터는 2장 보이게
+      1600: {
+        slidesPerView: 2,
+      },
+    },
+  });
+</script>
+<script>
+  // 상세페이지 섹션용 Swiper
+  var detailSwiper = new Swiper(".detail-swiper", {
+    loop: true,  // ✅ 무한 슬라이드
+    autoplay: {
+      delay: 4000,
+      disableOnInteraction: false,
+    },
+    speed: 900,
+    scrollbar: {
+      // 이 detail-swiper 안에 있는 스크롤바만 쓰게 스코프 한정
+      el: ".detail-swiper .detail__scrollbar",
+      draggable: true,
+      hide: false,
+    },
+    breakpoints: {
+      0:    { slidesPerView: 1.1, spaceBetween: 16 },
+      640:  { slidesPerView: 3, spaceBetween: 28 },
+      1024: { slidesPerView: 3,   spaceBetween: 40 },
+      1600: { slidesPerView: 3,   spaceBetween: 60 }, // ← 슬라이드 3개 기준
+    },
+  });
+</script>
+
+  <script src="./js/header.js?v=3"></script>
+  <script src="./js/popup-modal.js?v=3"></script>
+</body>
+</html>
